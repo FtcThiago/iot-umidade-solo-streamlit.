@@ -4,7 +4,7 @@ Aplicação de apresentação acadêmica do projeto **Sistema IoT de Telemetria 
 
 **Autor:** Thiago Félix Teixiera Chaves · **Professor:** Sérgio Cortez
 
-> **Estado da entrega:** código completo e pronto para testar localmente e publicar. A publicação depende de execução/implantação pelo proprietário. Não há link público criado neste pacote.
+> **Estado atual:** aplicação publicada no [Streamlit Community Cloud](https://iot-umidade-solo-app-sjimj8wsmsroawnwcxcn8n.streamlit.app/); código versionado no GitHub.
 
 ## Visão geral
 
@@ -144,7 +144,7 @@ Leia **[docs/PUBLICACAO_GITHUB_STREAMLIT.md](docs/PUBLICACAO_GITHUB_STREAMLIT.md
 ## Melhorias da versão 2 (em revisão)
 
 - **Modo apresentação:** navegação por etapas com indicador visual e notas de fala discretas, acessíveis em cada tela.
-- **Dashboard interativo:** a escolha entre ADC e índice experimental altera série temporal, comparação diária, distribuição e mapa de calor.
+- **Dashboard interativo:** escolha ADC ou índice experimental para atualizar panorama global, série por minuto, comparação diária e resumo por horário.
 - **Análise contextual:** um resumo calculado para o intervalo escolhido explica a variação da média entre o primeiro e o último dia filtrado.
 - **Critério exploratório ajustável:** no painel de padrões, o limiar das quedas de ADC pode ser alterado de 10 a 100; eventos não são apresentados como prova de chuva.
 - **Galeria ampliada:** imagens reais adicionais da montagem e da planta.
@@ -165,7 +165,7 @@ O aplicativo expõe preços totais comprovados (R$ 76,32; R$ 7,56; R$ 11,33, tot
 
 ## Painel de gráficos com filtros (24/11/2026)
 
-A página Dashboard permite escolher **uma data**, ajustar o intervalo de **minutos**, alternar entre o índice experimental (%) e a leitura ADC e marcar os extremos (maior e menor índice). Também apresenta a média por dia e, opcionalmente, a comparação por faixa horária entre dias.
+A página Dashboard mostra um **gráfico único com os seis dias**, suas **médias diárias** e a **média geral de todo o conjunto**, sem ligar sessões noturnas como se fossem medições. Também permite escolher **uma data**, ajustar o intervalo de **minutos**, alternar entre índice experimental (%) e ADC, e marcar os extremos (maior e menor índice).
 
 A análise de mudança relevante compara medições separadas por **dez minutos**. Pontos consecutivos relacionados ao mesmo evento são agrupados; uma queda do ADC não identifica necessariamente uma causa física.
 
@@ -174,3 +174,11 @@ A exportação do banco `telemetria_iot.importacao_csv` foi validada: **1.440 li
 ### Fotos novas na galeria
 
 O aplicativo suporta imagens opcionais em `imagens/galeria_extra/`. A galeria só exibe os arquivos que já foram enviados, sem imagens quebradas. As 15 fotos novas dos componentes estão no pacote fornecido no chat e devem ser enviadas ao mesmo diretório, preservando os nomes dos arquivos. Fotografia de componente adquirido não implica sua utilização no sistema de aquisição já validado.
+
+## Revisão V5 — panorama geral e conferência de contagens
+
+- Visão conjunta dos seis dias em um gráfico único, mostrando os valores minuto a minuto (opcionais), médias diárias e média global.
+- Total atual: **1.440 registros, 240 por dia**. As **144 referências iniciais** não são o total atual; foram complementadas com 1.296 pontos interpolados/simulados.
+- Médias da exportação validada: **2.456,98 ADC** e **22,90%** de índice relativo experimental.
+- Os gráficos apenas agregam os valores do arquivo/banco escolhido. Não criam novas observações físicas ou eventos de chuva.
+- Testes atualizados para o volume correto de dados e textos de documentação revisados.
