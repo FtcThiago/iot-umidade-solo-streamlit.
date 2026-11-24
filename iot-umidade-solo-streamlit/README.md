@@ -139,3 +139,19 @@ Leia **[docs/PUBLICACAO_GITHUB_STREAMLIT.md](docs/PUBLICACAO_GITHUB_STREAMLIT.md
 - Não há acionamento de bomba nem controle de dispositivos pelo site.
 - A execução final do Streamlit deve ser verificada na máquina do usuário antes do deploy.
 - Dados reais futuros devem ser documentados em arquivos próprios, identificados como experimentais e com coleta comprovável.
+
+
+## Melhorias da versão 2 (em revisão)
+
+- **Modo apresentação:** navegação por etapas com indicador visual e notas de fala discretas, acessíveis em cada tela.
+- **Dashboard interativo:** a escolha entre ADC e índice experimental altera série temporal, comparação diária, distribuição e mapa de calor.
+- **Análise contextual:** um resumo calculado para o intervalo escolhido explica a variação da média entre o primeiro e o último dia filtrado.
+- **Critério exploratório ajustável:** no painel de padrões, o limiar das quedas de ADC pode ser alterado de 10 a 100; eventos não são apresentados como prova de chuva.
+- **Galeria ampliada:** imagens reais adicionais da montagem e da planta.
+
+### Verificação rápida antes de publicar
+
+Execute `python -m pytest -q` se tiver `pytest` instalado, e depois `streamlit run app.py`.
+Confirme que os filtros e gráficos mudam juntos, que a navegação funciona em celular e que o modo apresentação permite abrir o roteiro rápido.
+
+Este ramo de desenvolvimento não altera os arquivos CSV nem as credenciais de conexão ao PostgreSQL.

@@ -52,32 +52,34 @@ def resumo_por_dia(df, campo='adc_medio'):
     return acabamento(fig,365,qual)
 
 
-def distribuicao(df):
+def distribuicao(df, campo='adc'):
     d=df.copy();d['dia_label']=d['dia'].apply(lambda x:x.strftime('%d/%m'))
-    fig=px.box(d,x='dia_label',y='adc',points='all',color_discrete_sequence=[VERDE],
-        labels={'dia_label':'Dia','adc':'ADC'}, hover_data=['hora'])
+    eixo='Leitura ADC' if campo=='adc' else 'Índice relativo experimental (%)'
+    fig=px.box(d,x='dia_label',y=campo,points='all',color_discrete_sequence=[VERDE],
+        labels={'dia_label':'Dia',campo:eixo}, hover_data=['hora'])
     fig.update_traces(jitter=.25,pointpos=0,marker_size=5)
-    return acabamento(fig,390,'Leitura ADC')
+    return acabamento(fig,390,eixo)
 
 
-def mapa_calor(df):
-    pv=df.pivot_table(index='hora_cheia',columns='dia',values='indice',aggfunc='mean')
+def mapa_calor(df, campo='indice'):
+    pv=df.pivot_table(index='hora_cheia',columns='dia',values=campo,aggfunc='mean')
     pv=pv.sort_index()
     if pv.empty: return acabamento(go.Figure())
     fig=go.Figure(go.Heatmap(z=pv.values, x=[d.strftime('%d/%m') for d in pv.columns],
         y=pv.index.to_list(),colorscale=[[0,'#ecf5f4'],[.5,'#80cbbc'],[1,'#096c63']],
         texttemplate='%{z:.1f}', textfont=dict(size=12),
-        colorbar=dict(title='Índice %'), hovertemplate='%{x} | %{y}<br>%{z:.1f}%<extra></extra>'))
+        colorbar=dict(title='ADC' if campo=='adc' else 'Índice %'),
+        hovertemplate='%{x} | %{y}<br>%{z:.1f}'+(' ADC' if campo=='adc' else '%')+'<extra></extra>'))
     return acabamento(fig,340,'Horário')
 
 
-def diferencas(df):
+def diferencas(df, limiar=30):
     v=variacoes(df).dropna(subset=['delta_adc']).copy()
-    colors=[DOURADO if z<=-30 else '#7898a7' for z in v['delta_adc']]
+    colors=[DOURADO if z<=-limiar else '#7898a7' for z in v['delta_adc']]
     fig=go.Figure(go.Bar(x=v['data_hora'],y=v['delta_adc'],marker_color=colors,
         hovertemplate='%{x|%d/%m %H:%M}<br>ΔADC: %{y:+.0f}<extra></extra>'))
-    fig.add_hline(y=-30,line_dash='dot',line_color=DOURADO,
-        annotation_text='Limiar exploratório −30',annotation_position='top left')
+    fig.add_hline(y=-limiar,line_dash='dot',line_color=DOURADO,
+        annotation_text=f'Limiar exploratório −{limiar}',annotation_position='top left')
     return acabamento(fig,390,'Variação ADC entre leituras')
 
 
