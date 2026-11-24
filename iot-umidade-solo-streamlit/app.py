@@ -13,6 +13,7 @@ from utils.dados import (ROOT, carregar_publicacao, carregar_postgres_config,
                          resumo_diario, variacoes, indicadores,
                          leituras_reais_referencia, converter_csv_download)
 from utils import graficos as g
+from utils import interpretacoes as explicacao
 from utils.picos import mudancas_em_dez_minutos, resumo_dia
 
 st.set_page_config(page_title='Projeto IoT | Umidade do Solo — IESB',
@@ -99,7 +100,7 @@ def nav_move(delta):
 if 'etapa' not in st.session_state:st.session_state.etapa=0
 st.sidebar.image(str(IMAGENS/'iesb_logo.png'),width=94)
 st.sidebar.markdown('### Projeto IoT')
-st.sidebar.success('✅ V6 · 1.440 registros · 24/11/2026')
+st.sidebar.success('✅ V7 · gráficos explicados · 24/11/2026')
 st.sidebar.caption('Ciência de Dados e Inteligência Artificial  ·  IESB 2026')
 st.sidebar.divider()
 st.sidebar.markdown('**Navegação da apresentação**')
@@ -110,7 +111,7 @@ idx=int(st.session_state.etapa)
 st.sidebar.progress((idx+1)/len(ETAPAS),text=f'Etapa {idx+1} de {len(ETAPAS)}')
 st.sidebar.toggle('Modo apresentação',value=True,key='modo_apresentacao',
     help='Mantém tabelas técnicas recolhidas; desative para expandir os detalhes.')
-st.sidebar.caption('Visão resumida' if st.session_state.modo_apresentacao else 'Visão técnica ampliada')
+st.sidebar.caption('Visualização essencial' if st.session_state.modo_apresentacao else 'Detalhes técnicos expandidos')
 st.sidebar.caption('Dados de apresentação: histórico demonstrativo. A validação física é mostrada separadamente.')
 st.sidebar.caption('Histórico demonstrativo: dados completos de 17 a 22/11/2026.')
 st.sidebar.divider()
@@ -214,7 +215,7 @@ def tela_inicio():
            ('04 · Exploração','Gráficos e estatísticas ajudam a observar tendências e alterações no sinal.')]
     for col,(ti,de) in zip(cols,infos):
         with col:card(ti,de)
-    st.markdown('<div class="note">O site utiliza um <b>histórico demonstrativo</b> para apresentar análises de vários dias. Os testes físicos realizados com a planta são apresentados separadamente, sem supor coleta contínua nesse período.</div>',unsafe_allow_html=True)
+    st.markdown('<div class="note">A solução reúne <b>1.440 pontos de um histórico demonstrativo</b> distribuídos em seis tardes. A ESP32 foi validada em testes físicos separados, e o objetivo desta etapa é comprovar todo o fluxo da leitura até a análise, sem acionar a bomba.</div>',unsafe_allow_html=True)
     st.button('Explorar os gráficos →',type='primary',key='ir_dashboard',
               on_click=nav_move,args=(5,))
 
@@ -232,7 +233,7 @@ def tela_problema():
     with a:card('Medir','Capturar a leitura analógica do sensor de umidade do solo.')
     with b:card('Armazenar','Registrar os dados e consultá-los em uma estrutura relacional.')
     with c:card('Analisar','Construir métricas e gráficos que mostrem a variação das leituras.')
-    st.info('A irrigação automática foi prevista no escopo original, mas a primeira versão validada se concentra no monitoramento. A minibomba não é acionada por este site.')
+    st.info('A irrigação automática é uma evolução planejada. Esta versão demonstra a leitura do sensor e o acompanhamento dos dados, sem ligar a bomba ou controlar água automaticamente.')
 
 
 def tela_equipamentos():
@@ -275,7 +276,7 @@ def tela_equipamentos():
         for col,(arquivo,legenda) in zip(colunas,fotos[inicio:inicio+3]):
             with col:imagem(arquivo,legenda)
     st.subheader('Galeria dos acessórios complementares')
-    st.info('Esta seção recebe fotografias adicionais. Enquanto isso, veja as imagens reais já publicadas na galeria principal acima.')
+    st.caption('As imagens mostram os acessórios disponíveis para testes e possíveis ampliações da montagem, além dos componentes já empregados no monitoramento.')
     st.caption('As peças adicionais foram adquiridas, mas não integram o circuito de leitura validado. Alguns itens poderão ser usados em melhorias futuras.')
     fotos_extras = [
         ('modulo_rele_duplo.jpg', 'Relé de dois canais — expansão futura'),
@@ -355,7 +356,12 @@ ORDER BY timestamp_local;''',language='sql')
     d['data_hora']=d['data_hora'].dt.strftime('%d/%m/%Y %H:%M')
     d.columns=['Data/hora','ADC','Índice relativo (%)']
     st.dataframe(d,hide_index=True,use_container_width=True)
-    st.caption('O índice é uma transformação para comparação, não a porcentagem absoluta de água no solo.')
+    st.caption(
+        f'Esta amostra apresenta as primeiras oito linhas dos {len(base):,} registros do conjunto selecionado, com data, leitura ADC e índice relativo. '
+        'As leituras são identificadas pelo horário e podem ser consultadas no PostgreSQL após a importação. '
+        'O índice percentual é uma transformação experimental, não a porcentagem física de água no solo.'
+        .replace('1,440', '1.440')
+    )
 
 def tela_dashboard():
     section('Etapa 05 · Análise interativa', 'Os seis dias e os detalhes de cada dia',
@@ -384,12 +390,8 @@ def tela_dashboard():
         g.panorama_geral(base, campo=coluna, mostrar_minutos=mostrar_minutos),
         use_container_width=True
     )
-    st.caption(
-        'O traçado azul destaca a média calculada de cada dia; a linha pontilhada '
-        'mostra a média geral de todos os registros. As linhas claras mostram cada '
-        'minuto de cada sessão, sem conectar os períodos noturnos sem medições. '
-        'Todos os valores vêm da base selecionada, que contém registros demonstrativos.'
-    )
+    st.caption(explicacao.panorama(base, coluna))
+    st.caption('Dados do histórico demonstrativo, com pontos interpolados. As linhas não representam leituras físicas contínuas fora das quatro horas diárias.')
     st.divider()
     st.subheader('Gráfico 2 · DIA ESCOLHIDO — leitura minuto a minuto')
     dia = st.selectbox('Filtrar um dia (17 a 22/11/2026)', dias,
@@ -438,28 +440,21 @@ def tela_dashboard():
     fig.update_layout(height=470, hovermode='x unified', xaxis_title='Horário (Brasília)',
                       yaxis_title=nome_eixo, margin=dict(t=42, b=40))
     st.plotly_chart(fig, use_container_width=True)
-    st.caption('Cada ponto representa um minuto do histórico escolhido. As marcações identificam o maior e o menor índice do intervalo filtrado; o ADC bruto diminui quando a umidade relativa aumenta.')
-    st.subheader('Mudanças mais importantes do dia')
-    limiar = st.slider('Qual queda do ADC em dez minutos destacar?', 10, 100, 30, 5, key='limiar_picos')
+    st.caption(explicacao.minuto(foco, coluna))
+    # A barra isolada de "Mudanças mais importantes" foi retirada.
+    # A informação relevante continua acessível como texto sob o gráfico diário.
     janelas = mudancas_em_dez_minutos(dia_completo)
     janelas = janelas[janelas['data_hora'].dt.strftime('%H:%M').between(inicio, fim)].copy()
-    eventos = janelas[janelas['delta_adc_10min'] <= -limiar].copy()
-    if eventos.empty:
-        st.info(f'Nenhuma queda superior ou igual a {limiar} ADC em dez minutos neste intervalo. Isso não indica erro nos dados.')
-    else:
-        eventos['novo_evento'] = eventos['data_hora'].diff().dt.total_seconds().gt(600).fillna(True)
-        eventos['grupo'] = eventos['novo_evento'].cumsum()
-        destaques = (eventos.sort_values('delta_adc_10min')
-                            .drop_duplicates('grupo').sort_values('data_hora'))
-        nomes = destaques['data_hora'].dt.strftime('%d/%m %H:%M')
-        destaque_fig = px.bar(x=nomes, y=-destaques['delta_adc_10min'],
-                             labels={'x':'Horário de referência', 'y':'Queda do ADC em 10 minutos'})
-        destaque_fig.update_traces(marker_color='#d7a455', text=(-destaques['delta_adc_10min']).round(0).astype(int), textposition='outside')
-        destaque_fig.update_layout(height=340, margin=dict(t=38, b=35))
-        st.plotly_chart(destaque_fig, use_container_width=True)
-        for reg in destaques.itertuples(index=False):
-            st.caption(f"{reg.data_hora.strftime('%d/%m às %H:%M')}: queda de {-reg.delta_adc_10min:.0f} pontos ADC em dez minutos.")
-    st.caption('Janelas vizinhas que apontam para a mesma alteração foram agrupadas. Quedas de ADC são indicativas de maior umidade relativa, mas não provam chuva ou rega.')
+    if not janelas.empty:
+        alteracao = janelas.loc[janelas['delta_adc_10min'].idxmin()]
+        if alteracao['delta_adc_10min'] < 0:
+            st.caption(
+                f'Variação relevante do período: às {alteracao["data_hora"].strftime("%H:%M")} '
+                f'foi registrada uma queda de {abs(alteracao["delta_adc_10min"]):.0f} '
+                'pontos ADC em relação a dez minutos antes. Uma queda do ADC pode sugerir '
+                'aumento relativo da umidade, mas, neste histórico demonstrativo, '
+                'não comprova chuva nem irrigação real.'
+            )
     st.subheader('Comparação auxiliar · Média diária')
     resumo = resumo_diario(base).copy()
     resumo['dia_label'] = resumo['dia'].apply(lambda d: d.strftime('%d/%m'))
@@ -471,7 +466,7 @@ def tela_dashboard():
     media_fig.update_traces(marker_color=cores, textposition='outside')
     media_fig.update_layout(height=360)
     st.plotly_chart(media_fig, use_container_width=True)
-    st.caption('As barras mostram a média do indicador selecionado para cada dia. A barra verde representa o dia escolhido no filtro.')
+    st.caption(explicacao.medias_diarias(base, dia, coluna))
     st.subheader('Comparação auxiliar · Médias por horário')
     comparar = st.checkbox('Comparar também com outros dias', value=False, key='comparar_dias')
     if comparar:
@@ -487,7 +482,7 @@ def tela_dashboard():
         hfig.update_traces(marker_color='#245f87')
     hfig.update_layout(height=380)
     st.plotly_chart(hfig, use_container_width=True)
-    st.caption('As barras mostram a média por faixa horária para o indicador selecionado (ADC ou índice relativo). A comparação entre dias é opcional.')
+    st.caption(explicacao.horarios(horas, coluna, comparar))
     with st.expander('Tabela dos minutos selecionados e download'):
         visao = foco[['data_hora','adc','indice']].copy()
         visao['data_hora'] = visao['data_hora'].dt.strftime('%d/%m/%Y %H:%M')
@@ -499,10 +494,11 @@ def tela_dashboard():
     with st.expander('Outros gráficos técnicos'):
         a, b = st.columns(2)
         with a:
-            st.plotly_chart(g.distribuicao(base), use_container_width=True)
+            st.plotly_chart(g.distribuicao(base, campo=coluna), use_container_width=True)
+            st.caption(explicacao.distribuicao(base, coluna))
         with b:
-            st.plotly_chart(g.mapa_calor(base), use_container_width=True)
-        st.caption('Distribuição por dia e mapa de calor ajudam em análises técnicas, mas não são necessários para explicar os picos.')
+            st.plotly_chart(g.mapa_calor(base, campo=coluna), use_container_width=True)
+            st.caption(explicacao.calor(base, coluna))
     st.caption('O histórico de seis tardes é demonstrativo e inclui pontos interpolados: eles não representam novas observações físicas independentes.')
 
 def tela_resultados():
@@ -513,7 +509,7 @@ def tela_resultados():
         st.subheader('Teste físico: resposta à água')
         obs=leituras_reais_referencia()
         st.plotly_chart(g.teste_fisico(obs),use_container_width=True)
-        st.caption('Leituras reais selecionadas, na sequência registrada. Os intervalos de tempo entre etapas não foram medidos, portanto o eixo horizontal é categórico.')
+        st.caption(explicacao.fisico(obs))
     with b:
         imagem('sonda_no_solo.jpg','Sensor capacitivo instalado no vaso (registro do projeto).')
         st.write('A queda de **2501 para 1915 ADC** após adicionar água confirmou uma resposta do sensor à mudança de condição do substrato.')
@@ -524,7 +520,7 @@ def tela_resultados():
     eventos=variacoes(base); event=eventos[eventos['delta_adc']<=-30]
     c1,c2,c3=st.columns(3)
     with c1:card('Tendência de secagem',f"O ADC médio passou de {primeiro.adc_medio:.1f} no primeiro dia para {mais_seco.adc_medio:.1f} em {mais_seco.dia.strftime('%d/%m')}.")
-    with c2:card('Alteração relevante','O cenário demonstrativo inclui mudança relevante no ADC em 21/11, indicando maior umidade relativa.')
+    with c2:card('Mudança do cenário','No conjunto demonstrativo, as médias mudam entre os dias e há uma recuperação do índice relativo em 21/11. Isso ilustra uma alteração nos registros, sem confirmar um evento meteorológico.')
     with c3:card('Limite interpretativo','O índice é experimental; alterações rápidas não identificam, sozinhas, a causa da umidificação.')
     st.markdown('<div class="note">As observações de vários dias representam <b>um cenário de demonstração</b>. Não foram coletadas continuamente pelo sensor nos seis dias; a confirmação física está documentada em testes separados.</div>',unsafe_allow_html=True)
 
@@ -558,7 +554,7 @@ def tela_conclusao():
 
 PAGINAS=[tela_inicio,tela_problema,tela_equipamentos,tela_fluxo,tela_coleta,tela_dashboard,tela_resultados,tela_conclusao]
 st.markdown(f'<div class="presentation-bar"><span><b>{ETAPAS[idx][1]} Etapa {idx+1:02d}/{len(ETAPAS):02d}</b> · {ETAPAS[idx][0]}</span><span>IESB · 2026</span></div>',unsafe_allow_html=True)
-st.caption('🟢 **Versão 6 — 24/11/2026** | CSV sem cache antigo; 1.440 registros validados; dois gráficos principais (6 dias e dia individual).')
+st.caption('🟢 **Versão 7 — 24/11/2026** | Dois gráficos principais, explicações calculadas do histórico e filtro diário. 1.440 registros de demonstração.')
 PAGINAS[idx]()
 st.divider()
 prev,next_=st.columns([1,1])
