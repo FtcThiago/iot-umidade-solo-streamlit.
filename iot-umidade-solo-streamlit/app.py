@@ -61,6 +61,9 @@ h1,h2,h3,[data-testid="stMetricLabel"]{font-family:"Manrope",sans-serif!importan
 .kpi-band{margin:0 0 18px;background:#e9f4f0;border:1px solid #cee4dc;border-radius:13px;padding:12px 16px;color:#32635c}
 .callout-strong{border:1px solid #d6e9e2;background:#eff8f3;border-radius:15px;padding:19px 22px;color:#24584f}
 .source-note{color:#587780;font-size:.8rem;border-top:1px solid #e0e8e9;margin-top:22px;padding-top:11px}
+.presentation-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #d9e7e6;background:#fff;padding:11px 17px;border-radius:13px;margin-bottom:18px;color:#42636a;font-size:.87rem}
+.presentation-bar b{color:#0b7168}.insight-card{border-left:4px solid #158c79;background:#fff;border-radius:11px;padding:16px 18px;margin:10px 0 16px;border-top:1px solid #e2ebea;border-right:1px solid #e2ebea;border-bottom:1px solid #e2ebea}
+.insight-card strong{color:#153e45}.insight-card p{color:#53717a;margin:.35rem 0 0;line-height:1.5}
 [data-testid="stCaptionContainer"]{color:#6c8590}
 @media(max-width:760px){.hero{padding:25px 20px;min-height:auto}.block-container{padding-left:.8rem;padding-right:.8rem}.hero h1{font-size:2rem}}
 </style>''',unsafe_allow_html=True)
@@ -104,6 +107,7 @@ st.sidebar.progress((idx+1)/len(ETAPAS),text=f'Etapa {idx+1} de {len(ETAPAS)}')
 st.sidebar.toggle('Modo apresentação',value=True,key='modo_apresentacao',
     help='Mantém tabelas técnicas recolhidas; desative para expandir os detalhes.')
 st.sidebar.caption('Visão resumida' if st.session_state.modo_apresentacao else 'Visão técnica ampliada')
+st.sidebar.caption('Dados de apresentação: histórico demonstrativo. A validação física é mostrada separadamente.')
 st.sidebar.divider()
 st.sidebar.markdown('**Thiago Félix Teixiera Chaves**')
 st.sidebar.caption('Prof. Sérgio Cortez')
@@ -143,6 +147,17 @@ if base.empty:
     st.stop()
 
 
+ROTEIRO = [
+    'Apresente a pergunta principal: como transformar o estado da terra em informações úteis? Destaque o sensor, a ESP32 e o banco.',
+    'Explique por que observar a terra visualmente não oferece um histórico numérico. A solução registra mudanças do sinal.',
+    'Mostre a ESP32, a sonda e a foto da montagem. Explique as conexões GND, 3V3 e GPIO34 e o custo documentado.',
+    'Siga o fluxo físico até a análise: sensor → microcontrolador → USB → Python → CSV/PostgreSQL → gráficos.',
+    'Mostre os nomes das três colunas, explique ADC e o índice relativo e destaque que DBeaver é o gerenciador, não o banco.',
+    'Altere o intervalo de datas e o indicador. Mostre médias diárias, dispersão e o critério exploratório de variação.',
+    'Separe o teste físico, que comprovou resposta do sensor à água, do cenário demonstrativo de seis dias.',
+    'Conclua com o que funcionou e apresente a irrigação automática apenas como evolução futura.'
+]
+
 # ------------------ PÁGINAS ------------------
 def tela_inicio():
     a,b=st.columns([1.32,1],gap='large')
@@ -171,6 +186,9 @@ def tela_inicio():
     for col,(ti,de) in zip(cols,infos):
         with col:card(ti,de)
     st.markdown('<div class="note">O site utiliza um <b>histórico demonstrativo</b> para apresentar análises de vários dias. Os testes físicos realizados com a planta são apresentados separadamente, sem supor coleta contínua nesse período.</div>',unsafe_allow_html=True)
+    if st.button('Explorar os gráficos →',type='primary',key='ir_dashboard'):
+        st.session_state.etapa=5
+        st.rerun()
 
 
 def tela_problema():
@@ -217,6 +235,11 @@ def tela_equipamentos():
                 ('Kit bomba de água (futuro)','R$ 11,33'),('Total documentado','R$ 95,21')],
                 columns=['Aquisição','Custo']),hide_index=True,use_container_width=True)
             st.caption('A bomba, os relés, o visor OLED e o DHT11 não foram integrados ao protótipo validado.')
+    with st.expander('Galeria adicional — registros do processo',expanded=False):
+        c1,c2,c3=st.columns(3,gap='medium')
+        with c1:imagem('jumpers.jpg','Cabos utilizados durante os testes.')
+        with c2:imagem('sensor_na_planta.jpg','Instalação do sensor na planta monitorada.')
+        with c3:imagem('planta_geral.jpg','Visão geral da montagem junto à planta.')
     st.markdown('<div class="note">Durante as regas, a parte eletrônica e a ESP32 devem permanecer secas e afastadas de respingos e tomadas.</div>',unsafe_allow_html=True)
 
 
@@ -299,6 +322,12 @@ def tela_dashboard():
     ]):
         with col:st.metric(rot,val)
     st.caption(f'{info["dias"]} dia(s) no filtro · {info["inicio"].strftime("%d/%m/%Y %H:%M")} a {info["fim"].strftime("%d/%m/%Y %H:%M")} (Brasília)')
+    diaria=resumo_diario(f)
+    d_inicio,d_fim=diaria.iloc[0],diaria.iloc[-1]
+    variacao_media=d_fim.adc_medio-d_inicio.adc_medio
+    leitura=f'ADC médio {abs(variacao_media):.1f} pontos ' + ('maior' if variacao_media>0 else 'menor' if variacao_media<0 else 'igual')
+    conclusao=('tendência de maior secura relativa' if variacao_media>0 else 'tendência de maior umidade relativa' if variacao_media<0 else 'estabilidade do ADC médio')
+    st.markdown(f'<div class="insight-card"><strong>Leitura rápida do filtro</strong><p>Entre {d_inicio.dia.strftime("%d/%m")} e {d_fim.dia.strftime("%d/%m")}, o {leitura} aponta {conclusao} no conjunto selecionado. Essa comparação é exploratória, não identifica a causa da mudança.</p></div>',unsafe_allow_html=True)
     tab1,tab2,tab3,tab4=st.tabs(['📈 Série temporal','📊 Comparação diária','🧭 Padrões','📋 Tabela de dados'])
     with tab1:
         campo='adc' if indicador=='Leitura ADC' else 'indice'
@@ -306,19 +335,22 @@ def tela_dashboard():
         st.caption('Valores menores de ADC sugerem maior umidade relativa neste sensor; o índice foi derivado dessas mesmas leituras.')
     with tab2:
         l,r=st.columns([1.1,.9],gap='medium')
-        with l:st.plotly_chart(g.resumo_por_dia(f,'adc_medio'),use_container_width=True)
-        with r:st.plotly_chart(g.distribuicao(f),use_container_width=True)
+        with l:st.plotly_chart(g.resumo_por_dia(f,'adc_medio' if indicador=='Leitura ADC' else 'indice_medio'),use_container_width=True)
+        with r:st.plotly_chart(g.distribuicao(f,'adc' if indicador=='Leitura ADC' else 'indice'),use_container_width=True)
         d=resumo_diario(f).copy()
         d['dia']=d['dia'].astype(str)
         d=d[['dia','leituras','adc_medio','adc_desvio','indice_medio']].round(2)
         d.columns=['Dia','Leituras','ADC médio','Desvio-padrão ADC','Índice médio (%)']
         st.dataframe(d,hide_index=True,use_container_width=True)
     with tab3:
+        limiar=st.slider('Limiar exploratório para quedas de ADC',min_value=10,max_value=100,value=30,step=5,
+                         help='Uma queda brusca pode sinalizar uma mudança no sensor, mas não comprova chuva ou irrigação.')
         l,r=st.columns(2,gap='medium')
-        with l:st.plotly_chart(g.mapa_calor(f),use_container_width=True)
-        with r:st.plotly_chart(g.diferencas(f),use_container_width=True)
-        eventos=variacoes(f).query('queda_importante').copy()
-        st.caption(f'{len(eventos)} ocorrência(s) de queda de ADC ≥ 30 entre duas leituras consecutivas no mesmo dia. O evento, por si só, não comprova chuva real.')
+        with l:st.plotly_chart(g.mapa_calor(f,'adc' if indicador=='Leitura ADC' else 'indice'),use_container_width=True)
+        with r:st.plotly_chart(g.diferencas(f,limiar=limiar),use_container_width=True)
+        eventos=variacoes(f)
+        eventos=eventos[eventos['delta_adc']<=-limiar].copy()
+        st.caption(f'{len(eventos)} queda(s) de ADC ≥ {limiar} entre leituras consecutivas do mesmo dia. Esse critério é exploratório e não comprova chuva real.')
         with st.expander('Distribuição de frequência (histograma)', expanded=not st.session_state.modo_apresentacao):
             st.plotly_chart(g.histograma(f),use_container_width=True)
     with tab4:
@@ -389,7 +421,10 @@ def tela_conclusao():
     st.caption('Centro Universitário IESB · Graduação em Ciência de Dados e Inteligência Artificial · Prof. Sérgio Cortez')
 
 PAGINAS=[tela_inicio,tela_problema,tela_equipamentos,tela_fluxo,tela_coleta,tela_dashboard,tela_resultados,tela_conclusao]
+st.markdown(f'<div class="presentation-bar"><span><b>{ETAPAS[idx][1]} Etapa {idx+1:02d}/{len(ETAPAS):02d}</b> · {ETAPAS[idx][0]}</span><span>IESB · 2026</span></div>',unsafe_allow_html=True)
 PAGINAS[idx]()
+with st.expander('🎤 Dica de apresentação — o que explicar nesta etapa',expanded=False):
+    st.write(ROTEIRO[idx])
 st.divider()
 prev,next_=st.columns([1,1])
 with prev:
