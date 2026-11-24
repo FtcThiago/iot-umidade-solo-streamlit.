@@ -8,10 +8,12 @@ from pathlib import Path
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from utils.dados import (ROOT, carregar_publicacao, carregar_postgres_config,
                          resumo_diario, variacoes, indicadores,
                          leituras_reais_referencia, converter_csv_download)
 from utils import graficos as g
+from utils.picos import mudancas_em_dez_minutos, resumo_dia
 
 st.set_page_config(page_title='Projeto IoT | Umidade do Solo — IESB',
                    page_icon='🌱', layout='wide', initial_sidebar_state='expanded')
@@ -235,6 +237,35 @@ def tela_equipamentos():
         colunas=st.columns(3,gap='medium')
         for col,(arquivo,legenda) in zip(colunas,fotos[inicio:inicio+3]):
             with col:imagem(arquivo,legenda)
+    st.subheader('Galeria dos acessórios complementares')
+    st.caption('As peças adicionais foram adquiridas, mas não integram o circuito de leitura validado. Alguns itens poderão ser usados em melhorias futuras.')
+    fotos_extras = [
+        ('modulo_rele_duplo.jpg', 'Relé de dois canais — expansão futura'),
+        ('cabos_jumper_kit.jpg', 'Cabos jumper do kit'),
+        ('leds_botoes.jpg', 'LEDs e botões para testes'),
+        ('visao_modulos.jpg', 'Sensores e componentes disponíveis'),
+        ('modulo_rele_simples.jpg', 'Relé de um canal — expansão futura'),
+        ('sensor_luz_ldr.jpg', 'Sensor de luminosidade LDR'),
+        ('esp32_close.jpg', 'ESP32 DevKit em detalhe'),
+        ('sensor_movimento_pir.jpg', 'Sensor de movimento PIR'),
+        ('sensor_dht11.jpg', 'DHT11 — temperatura e umidade do ar'),
+        ('modulos_conjunto.jpg', 'Módulos complementares'),
+        ('kit_usb_pilhas_jumpers.jpg', 'Cabo USB, suporte de pilhas e jumpers'),
+        ('display_oled.jpg', 'Visor OLED — expansão futura'),
+        ('protoboard_embalada.jpg', 'Protoboard'),
+        ('bomba_agua.jpg', 'Bomba para futura irrigação'),
+        ('cabo_usb.jpg', 'Cabo USB'),
+    ]
+    pasta_extra = IMAGENS / 'galeria_extra'
+    presentes = [(nome, titulo) for nome, titulo in fotos_extras if (pasta_extra / nome).exists()]
+    if presentes:
+        for inicio in range(0, len(presentes), 3):
+            colunas = st.columns(3, gap='medium')
+            for col, (arquivo, legenda) in zip(colunas, presentes[inicio:inicio + 3]):
+                with col:
+                    st.image(str(pasta_extra / arquivo), caption=legenda, use_container_width=True)
+    else:
+        st.caption('As novas fotografias serão exibidas nesta seção quando a pasta galeria_extra for publicada.')
     st.markdown('<div class="note">Custos conforme comprovantes: kit ESP32 e acessórios <b>R$ 76,32</b>; sensor capacitivo <b>R$ 7,56</b>; kit de bomba para etapa futura <b>R$ 11,33</b>; total <b>R$ 95,21</b>. Durante os testes, mantenha toda eletrônica afastada de água e tomadas.</div>',unsafe_allow_html=True)
 
 
@@ -289,68 +320,122 @@ ORDER BY timestamp_local;''',language='sql')
     st.caption('O índice é uma transformação para comparação, não a porcentagem absoluta de água no solo.')
 
 def tela_dashboard():
-    section('Etapa 05 · Análise interativa','Dashboard explicado passo a passo',
-            'Compare dias e horários e identifique mudanças sem precisar interpretar gráficos complexos.')
-    st.caption('Análises do histórico demonstrativo de 17 a 22/11/2026; medições físicas são apresentadas na página Resultados.')
-    dias=sorted(base['dia'].unique())
-    dia=st.selectbox('Escolha o dia para acompanhar minuto a minuto',dias,
-        index=next((i for i,d in enumerate(dias) if str(d)=='2026-11-21'),len(dias)-1),
-        format_func=lambda d:d.strftime('%d/%m/%Y'))
-    resumo=resumo_diario(base).copy()
-    resumo['dia_label']=resumo['dia'].apply(lambda x:x.strftime('%d/%m'))
-    c1,c2,c3=st.columns(3)
-    with c1:st.metric('Registros do histórico',f'{len(base):,}'.replace(',','.'))
-    with c2:st.metric('Dias',str(len(dias)))
-    with c3:st.metric('Registros do dia',str((base['dia']==dia).sum()))
-    st.subheader('1. Média de umidade por dia')
-    fig=px.bar(resumo,x='dia_label',y='indice_medio',text_auto='.1f',
-               labels={'dia_label':'Dia','indice_medio':'Índice relativo (%)'})
-    fig.update_traces(textposition='outside')
-    fig.update_layout(height=360,yaxis_range=[0,100])
-    st.plotly_chart(fig,use_container_width=True)
-    st.caption('Cada barra resume um dia. Índices mais altos indicam maior umidade relativa na escala experimental do sensor.')
-    st.subheader('2. Leituras minuto a minuto')
-    f=base[base['dia']==dia]
-    fig=px.line(f,x='data_hora',y='indice',
-                labels={'data_hora':'Horário da tarde','indice':'Índice relativo (%)'})
-    fig.update_layout(height=365)
-    st.plotly_chart(fig,use_container_width=True)
-    st.caption('A linha mostra a mudança do índice minuto a minuto no dia escolhido. Observe quando ela fica estável, sobe ou desce.')
-    st.subheader('3. Comparação dos horários entre os dias')
-    horas=base.groupby(['dia','hora_cheia'],as_index=False).agg(media=('indice','mean'))
-    horas['dia_label']=horas['dia'].apply(lambda x:x.strftime('%d/%m'))
-    fig=px.bar(horas,x='hora_cheia',y='media',color='dia_label',barmode='group',
-               labels={'hora_cheia':'Hora','media':'Índice médio (%)','dia_label':'Dia'})
-    fig.update_layout(height=410)
-    st.plotly_chart(fig,use_container_width=True)
-    st.caption('As barras comparam o índice médio das 14h, 15h, 16h e 17h em cada um dos seis dias.')
-    st.subheader('4. Momentos de mudança mais intensa')
-    atual=base[['dia','data_hora','adc']].copy()
-    atual['anterior']=atual['data_hora']-pd.Timedelta(minutes=10)
-    anterior=base[['dia','data_hora','adc']].rename(columns={'data_hora':'anterior','adc':'adc_anterior'})
-    janela=atual.merge(anterior,on=['dia','anterior'],how='left',validate='many_to_one')
-    janela['queda_10min']=janela['adc_anterior']-janela['adc']
-    destaques=janela[janela['queda_10min']>=30].nlargest(8,'queda_10min').copy()
-    if not destaques.empty:
-        destaques['horario']=destaques['data_hora'].dt.strftime('%d/%m %H:%M')
-        fig=px.bar(destaques.sort_values('queda_10min'),x='queda_10min',y='horario',
-                   orientation='h',labels={'queda_10min':'Queda de ADC em 10 min','horario':'Horário'})
-        fig.update_layout(height=360)
-        st.plotly_chart(fig,use_container_width=True)
-    else:st.info('Sem mudanças acima do limiar de 30 ADC em dez minutos.')
-    st.caption('Compara o ADC atual com o de dez minutos antes. Queda maior pode indicar aumento relativo de umidade, sem comprovar chuva ou rega. Várias janelas próximas podem refletir uma única mudança.')
-    with st.expander('Visualizações técnicas adicionais'):
-        a,b=st.columns(2)
-        with a:st.plotly_chart(g.distribuicao(base),use_container_width=True)
-        with b:st.plotly_chart(g.mapa_calor(base),use_container_width=True)
-        st.caption('O primeiro mostra a dispersão diária e o segundo organiza a intensidade do índice por dia e horário.')
-    with st.expander('Tabela completa e exportação'):
-        tb=base[['data_hora','adc','indice']].copy()
-        tb['data_hora']=tb['data_hora'].dt.strftime('%d/%m/%Y %H:%M')
-        tb.columns=['Data/hora','ADC','Índice relativo (%)']
-        st.dataframe(tb,hide_index=True,use_container_width=True)
-        st.download_button('Exportar CSV',data=converter_csv_download(base),file_name='leituras_iot.csv',mime='text/csv')
-    st.caption('A ampliação por interpolação facilita a demonstração da análise, mas não constitui 1.440 observações físicas independentes.')
+    section('Etapa 05 · Análise interativa', 'Evolução da umidade e picos',
+            'Selecione um dia e intervalo de minutos para conhecer a variação do sensor e encontrar os pontos mais importantes.')
+    st.caption('Histórico demonstrativo do PostgreSQL: 1.440 pontos em 6 tardes. Os testes físicos da ESP32 são apresentados na página Resultados.')
+    dias = sorted(base['dia'].unique())
+    dia = st.selectbox('Escolha o dia', dias,
+        index=next((i for i, d in enumerate(dias) if d.strftime('%Y-%m-%d') == '2026-11-21'), 0),
+        format_func=lambda d: d.strftime('%d/%m/%Y'), key='dia_dashboard')
+    valores = ['Índice relativo (%)', 'ADC bruto']
+    modo = st.radio('Indicador do gráfico', valores, horizontal=True, key='indicador_dashboard')
+    coluna = 'indice' if modo == valores[0] else 'adc'
+    nome_eixo = 'Índice relativo experimental (%)' if coluna == 'indice' else 'Leitura ADC'
+    dia_completo = base[base['dia'] == dia].sort_values('data_hora').copy()
+    horarios = dia_completo['hora'].tolist()
+    if not horarios:
+        st.warning('Não existem leituras na data escolhida.')
+        return
+    inicio, fim = st.select_slider('Filtrar horário da coleta (minuto a minuto)',
+        options=horarios, value=(horarios[0], horarios[-1]), key='horario_dashboard')
+    foco = dia_completo[dia_completo['hora'].between(inicio, fim)].copy()
+    if foco.empty:
+        st.info('Nenhuma leitura nesse horário.')
+        return
+    indic = resumo_dia(foco)
+    mais_umido = indic['pico_umido']
+    mais_seco = indic['pico_seco']
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.metric('Leituras no filtro', str(indic['n']))
+    with c2:
+        st.metric('Índice médio', f"{indic['indice_medio']:.1f}%")
+    with c3:
+        st.metric('Maior índice', f"{mais_umido['indice']:.1f}%", mais_umido['hora'], delta_color='off')
+    with c4:
+        st.metric('Menor índice', f"{mais_seco['indice']:.1f}%", mais_seco['hora'], delta_color='off')
+    st.subheader('1 · Evolução minuto a minuto')
+    fig = px.line(foco, x='data_hora', y=coluna,
+        labels={'data_hora': 'Horário (Brasília)', coluna: nome_eixo})
+    fig.update_traces(line=dict(color='#0f9d86', width=3), mode='lines+markers',
+                      marker=dict(size=3), hovertemplate='%{x|%H:%M}<br>%{y:.1f}<extra></extra>')
+    if st.checkbox('Destacar os picos de umidade no gráfico', value=True, key='marcar_picos'):
+        for linha, nome, cor in [
+            (mais_umido, 'Maior umidade relativa', '#198754'),
+            (mais_seco, 'Menor umidade relativa', '#c75d48')
+        ]:
+            fig.add_trace(go.Scatter(
+                x=[linha['data_hora']], y=[linha[coluna]], mode='markers+text',
+                name=nome, text=[nome + ' · ' + linha['hora']], textposition='top center',
+                marker=dict(color=cor, size=13, line=dict(color='white', width=2)),
+                hovertemplate='%{text}<br>%{y:.1f}<extra></extra>'))
+    fig.update_layout(height=470, hovermode='x unified', xaxis_title='Horário (Brasília)',
+                      yaxis_title=nome_eixo, margin=dict(t=42, b=40))
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption('Cada ponto representa um minuto do histórico escolhido. As marcações identificam o maior e o menor índice do intervalo filtrado; o ADC bruto diminui quando a umidade relativa aumenta.')
+    st.subheader('2 · Momentos de maior mudança')
+    limiar = st.slider('Qual queda do ADC em dez minutos destacar?', 10, 100, 30, 5, key='limiar_picos')
+    janelas = mudancas_em_dez_minutos(dia_completo)
+    janelas = janelas[janelas['data_hora'].dt.strftime('%H:%M').between(inicio, fim)].copy()
+    eventos = janelas[janelas['delta_adc_10min'] <= -limiar].copy()
+    if eventos.empty:
+        st.info(f'Nenhuma queda superior ou igual a {limiar} ADC em dez minutos neste intervalo. Isso não indica erro nos dados.')
+    else:
+        eventos['novo_evento'] = eventos['data_hora'].diff().dt.total_seconds().gt(600).fillna(True)
+        eventos['grupo'] = eventos['novo_evento'].cumsum()
+        destaques = (eventos.sort_values('delta_adc_10min')
+                            .drop_duplicates('grupo').sort_values('data_hora'))
+        nomes = destaques['data_hora'].dt.strftime('%d/%m %H:%M')
+        destaque_fig = px.bar(x=nomes, y=-destaques['delta_adc_10min'],
+                             labels={'x':'Horário de referência', 'y':'Queda do ADC em 10 minutos'})
+        destaque_fig.update_traces(marker_color='#d7a455', text=(-destaques['delta_adc_10min']).round(0).astype(int), textposition='outside')
+        destaque_fig.update_layout(height=340, margin=dict(t=38, b=35))
+        st.plotly_chart(destaque_fig, use_container_width=True)
+        for reg in destaques.itertuples(index=False):
+            st.caption(f"{reg.data_hora.strftime('%d/%m às %H:%M')}: queda de {-reg.delta_adc_10min:.0f} pontos ADC em dez minutos.")
+    st.caption('Janelas vizinhas que apontam para a mesma alteração foram agrupadas. Quedas de ADC são indicativas de maior umidade relativa, mas não provam chuva ou rega.')
+    st.subheader('3 · Média diária: comparação entre os seis dias')
+    resumo = resumo_diario(base).copy()
+    resumo['dia_label'] = resumo['dia'].apply(lambda d: d.strftime('%d/%m'))
+    cores = ['#0f9d86' if d == dia else '#9dbdbb' for d in resumo['dia']]
+    media_fig = px.bar(resumo, x='dia_label', y='indice_medio',
+                       text_auto='.1f', labels={'dia_label':'Dia', 'indice_medio':'Índice relativo médio (%)'})
+    media_fig.update_traces(marker_color=cores, textposition='outside')
+    media_fig.update_layout(height=360, yaxis_range=[0, max(40, resumo['indice_medio'].max() + 6)])
+    st.plotly_chart(media_fig, use_container_width=True)
+    st.caption('Compare os seis dias de forma simples: a barra verde destaca o dia selecionado, e as demais mostram a média do índice relativo de umidade.')
+    st.subheader('4 · Comparação entre horários')
+    comparar = st.checkbox('Comparar também com outros dias', value=False, key='comparar_dias')
+    if comparar:
+        aux = base[base['hora'].between(inicio, fim)].copy()
+        aux['dia_label'] = aux['dia'].apply(lambda d: d.strftime('%d/%m'))
+        horas = aux.groupby(['dia_label','hora_cheia'], as_index=False)['indice'].mean()
+        hfig = px.bar(horas, x='hora_cheia', y='indice', color='dia_label', barmode='group',
+                      labels={'hora_cheia':'Faixa horária','indice':'Índice médio (%)','dia_label':'Dia'})
+    else:
+        horas = foco.groupby('hora_cheia', as_index=False)['indice'].mean()
+        hfig = px.bar(horas, x='hora_cheia', y='indice',
+                      labels={'hora_cheia':'Faixa horária','indice':'Índice médio (%)'})
+        hfig.update_traces(marker_color='#245f87')
+    hfig.update_layout(height=380)
+    st.plotly_chart(hfig, use_container_width=True)
+    st.caption('As barras representam a média por faixa horária. Se a opção de comparação estiver marcada, mostram as mesmas faixas em outros dias.')
+    with st.expander('Tabela dos minutos selecionados e download'):
+        visao = foco[['data_hora','adc','indice']].copy()
+        visao['data_hora'] = visao['data_hora'].dt.strftime('%d/%m/%Y %H:%M')
+        visao.columns = ['Data/hora','Leitura ADC','Índice relativo (%)']
+        st.dataframe(visao, hide_index=True, use_container_width=True, height=360)
+        st.download_button('Baixar CSV do intervalo', data=converter_csv_download(foco),
+                           file_name=f"umidade_{dia.strftime('%Y%m%d')}_{inicio.replace(':','')}_{fim.replace(':','')}.csv",
+                           mime='text/csv', key='baixar_intervalo')
+    with st.expander('Outros gráficos técnicos'):
+        a, b = st.columns(2)
+        with a:
+            st.plotly_chart(g.distribuicao(base), use_container_width=True)
+        with b:
+            st.plotly_chart(g.mapa_calor(base), use_container_width=True)
+        st.caption('Distribuição por dia e mapa de calor ajudam em análises técnicas, mas não são necessários para explicar os picos.')
+    st.caption('O histórico de seis tardes é demonstrativo e inclui pontos interpolados: eles não representam novas observações físicas independentes.')
 
 def tela_resultados():
     section('Etapa 06 · Evidências','Resultados e interpretação',

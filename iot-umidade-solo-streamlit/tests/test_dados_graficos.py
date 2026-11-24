@@ -5,7 +5,7 @@ from utils import graficos as g
 
 def test_base_historica():
     df=carregar_publicacao()
-    assert len(df)==1440
+    assert len(df)==14400
     assert df["dia"].nunique()==6
     assert df["origem"].eq("historico_demonstrativo").all()
     assert df["adc"].between(0,4095).all()
@@ -14,15 +14,15 @@ def test_base_historica():
 def test_resumo_e_variacoes():
     df=carregar_publicacao()
     r=resumo_diario(df)
-    assert r["leituras"].sum()==1440
-    assert indicadores(df)["n"]==1440
+    assert r["leituras"].sum()==14400
+    assert indicadores(df)["n"]==14400
     assert variacoes(df)["delta_adc"].isna().sum()==6
 
 
 def test_graficos_filtrados():
     df=carregar_publicacao()
     dia=df[df["dia"].eq(df["dia"].iloc[0])].copy()
-    assert len(dia)==240
+    assert len(dia)==2400
     for fig in [g.serie_temporal(dia,"indice"),g.resumo_por_dia(dia,"indice_medio"),
                 g.distribuicao(dia,"indice"),g.mapa_calor(dia,"adc"),
                 g.diferencas(dia,limiar=50),g.histograma(dia)]:
