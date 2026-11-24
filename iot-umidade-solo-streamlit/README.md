@@ -201,3 +201,23 @@ Verificações adicionadas à interface:
 
 A aplicação pública lê os registros do CSV. Para atualizar a tabela no banco PostgreSQL,
 é necessário importar os registros no banco separadamente; o aplicativo não faz escritas no banco.
+
+## V7 — Leituras para apresentação integradas ao aplicativo
+
+As páginas foram organizadas com explicações naturais, curtas e objetivas ao lado dos dados.
+Cada gráfico tem uma interpretação **gerada a partir do DataFrame realmente carregado**:
+
+- **Panorama dos seis dias:** compara as médias do início e do fim, apresenta a média geral e identifica dias de maiores/menores valores médios.
+- **Série minuto a minuto:** mostra a evolução e os extremos do intervalo e dia escolhidos, sem ignorar os filtros.
+- **Média diária:** mostra o valor do dia selecionado e sua diferença em relação à média geral.
+- **Média por horário:** identifica quais faixas tiveram os maiores e menores valores, com ou sem comparação entre dias.
+- **Gráficos técnicos (opcionais):** distribuição e mapa de calor apresentam suas próprias interpretações.
+- **Teste físico:** a leitura antes/depois da água é descrita como observação experimental separada do histórico demonstrativo.
+
+O gráfico isolado de barras "Mudanças mais importantes do dia" e o controle de limiar
+associado a ele foram removidos para simplificar a apresentação. A maior redução
+do ADC em dez minutos ainda é descrita em texto curto **quando encontrada**, sem
+confundir uma alteração simulada com chuva ou rega comprovada.
+
+Não há novas linhas de dados: o CSV de 1.440 pontos continua sendo a fonte
+do histórico; as explicações se atualizam junto aos filtros.
