@@ -3,12 +3,12 @@
 ## Conjunto histórico
 
 - Fonte: seis CSVs apresentados no projeto e analisados no notebook executado do autor.
-- Período: 17–22 de novembro de 2026, 24 registros por dia (intervalo de 10 minutos, de 14h às 17h50).
+- Período: 17–22 de novembro de 2026, das 14h00 às 17h59, com 240 pontos por dia (intervalo de 1 minuto).
 - Natureza: **série de demonstração, sintetizada para testar o pipeline e as visualizações**.
-- Total: **144 registros**.
+- Total atual da tabela de demonstração: **1.440 registros (240 × 6)**. A versão anterior continha 144 referências; 1.296 pontos adicionais são estimativas interpoladas/simuladas, não observações físicas independentes.
 - Consulta usada no relatório: `telemetria_iot.importacao_csv`, PostgreSQL.
 - Colunas: `timestamp_local`, `solo_adc`, `indice_relativo_pct`.
-- Na publicação, uma coluna de rastreabilidade `origem = historico_demonstrativo` foi acrescentada ao CSV exportado; as três colunas medidas/analisadas não foram alteradas.
+- A publicação utiliza os mesmos valores e horários do CSV importado, acrescentando a coluna de rastreabilidade `origem = historico_demonstrativo` ao carregamento. Os gráficos calculam médias, mínimos, máximos e comparações diretamente dos registros (não geram valores aleatórios).
 - Um salto de índice observado no dia 21/11 corresponde ao cenário de teste. **Não significa chuva real comprovada**.
 
 ## Observações físicas
@@ -26,3 +26,12 @@ A bomba, relés, Wi-Fi, OLED e DHT11 são apenas candidatos a futuras integraç�
 ## Divulgação pública
 
 As fotografias selecionadas foram fornecidas pelo autor e reduzidas para uso na apresentação; os rodapés com detalhes pessoais da câmera foram cortados quando presentes. Não são incluídas senhas, usuários do banco institucional ou detalhes privados do servidor. A publicação pública usa um CSV próprio, não uma conexão externa permanente.
+
+## Indicadores atuais da exportação revisada
+
+- Registros: 1.440 (240 em cada um dos seis dias, 17 a 22/11/2026).
+- Média global do ADC: **2.456,98**.
+- Média global do índice relativo experimental: **22,90%**.
+- Média diária do índice relativo (%), na ordem cronológica: **35,63; 27,95; 18,16; 10,44; 21,93; 23,32**.
+- O panorama geral mostra leituras separadas por dia, médias diárias e uma linha de média global; não liga sessões com uma série fictícia durante a noite.
+- Oscilações do gráfico correspondem aos valores dos arquivos importados; grande parte do histórico é demonstrativa e não representa seis dias de coleta física contínua.
