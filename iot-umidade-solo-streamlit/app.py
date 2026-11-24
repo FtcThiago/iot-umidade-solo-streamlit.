@@ -99,7 +99,7 @@ def nav_move(delta):
 if 'etapa' not in st.session_state:st.session_state.etapa=0
 st.sidebar.image(str(IMAGENS/'iesb_logo.png'),width=94)
 st.sidebar.markdown('### Projeto IoT')
-st.sidebar.success('✅ V4 atualizada · 24/11/2026')
+st.sidebar.success('✅ V5 · panorama geral dos 6 dias · 24/11/2026')
 st.sidebar.caption('Ciência de Dados e Inteligência Artificial  ·  IESB 2026')
 st.sidebar.divider()
 st.sidebar.markdown('**Navegação da apresentação**')
@@ -112,7 +112,7 @@ st.sidebar.toggle('Modo apresentação',value=True,key='modo_apresentacao',
     help='Mantém tabelas técnicas recolhidas; desative para expandir os detalhes.')
 st.sidebar.caption('Visão resumida' if st.session_state.modo_apresentacao else 'Visão técnica ampliada')
 st.sidebar.caption('Dados de apresentação: histórico demonstrativo. A validação física é mostrada separadamente.')
-st.sidebar.caption('144 referências + 1.296 pontos interpolados = 1.440 registros de demonstração.')
+st.sidebar.caption('Histórico de referência: 1.440 registros (240 por dia; seis dias).')
 st.sidebar.divider()
 st.sidebar.markdown('**Thiago Félix Teixiera Chaves**')
 st.sidebar.caption('Prof. Sérgio Cortez')
@@ -168,7 +168,7 @@ def tela_inicio():
     with c1:st.metric('Dias no histórico',str(base['dia'].nunique()))
     with c2:st.metric('Leituras do histórico',f'{len(base):,}'.replace(',','.'))
     with c3:st.metric('Custo documentado','R$ 95,21')
-    with c4:st.metric('Gráficos analíticos','4 principais')
+    with c4:st.metric('Visualizações','5 perspectivas')
     st.write('')
     section('A proposta','Uma solução simples, de ponta a ponta',
             'O principal resultado é a integração entre montagem eletrônica, programação, armazenamento e análise de dados.')
@@ -291,7 +291,7 @@ def tela_fluxo():
         'A ESP32 usa o GPIO34, faz 20 amostras para compor uma média e envia leituras aproximadamente a cada 10 segundos.',
         'Um programa Python captura a comunicação serial e registra a data e a hora a partir do relógio do computador.',
         'Os arquivos CSV permitem importação no PostgreSQL. No projeto, a tabela consultada foi telemetria_iot.importacao_csv.',
-        'O notebook permite analisar os 1.440 pontos demonstrativos por dia, minuto, horário e mudanças relevantes, com explicações simples.'
+        'O notebook e o Streamlit analisam 1.440 pontos demonstrativos, calculando médias por dia, por hora e geral, além de variações por minuto.'
     ]
     st.markdown(f'<div class="callout-strong"><b>{items[escolha][0]}</b><br>{detalhamento[escolha]}</div>',unsafe_allow_html=True)
     st.subheader('Validação física documentada')
@@ -325,15 +325,32 @@ ORDER BY timestamp_local;''',language='sql')
 def tela_dashboard():
     section('Etapa 05 · Análise interativa', 'Evolução da umidade e picos',
             'Selecione um dia e intervalo de minutos para conhecer a variação do sensor e encontrar os pontos mais importantes.')
-    st.caption('Histórico demonstrativo do PostgreSQL: 1.440 pontos em 6 tardes. Os testes físicos da ESP32 são apresentados na página Resultados.')
+    st.caption(f'Histórico demonstrativo: {len(base):,} registros em {base["dia"].nunique()} dias, provenientes da fonte escolhida ({fonte}). Os testes físicos da ESP32 estão na página Resultados.'.replace(',', '.'))
     dias = sorted(base['dia'].unique())
-    dia = st.selectbox('Escolha o dia', dias,
+    dia = st.selectbox('Escolha o dia para visualizar os minutos', dias,
         index=next((i for i, d in enumerate(dias) if d.strftime('%Y-%m-%d') == '2026-11-21'), 0),
         format_func=lambda d: d.strftime('%d/%m/%Y'), key='dia_dashboard')
     valores = ['Índice relativo (%)', 'ADC bruto']
     modo = st.radio('Indicador do gráfico', valores, horizontal=True, key='indicador_dashboard')
     coluna = 'indice' if modo == valores[0] else 'adc'
     nome_eixo = 'Índice relativo experimental (%)' if coluna == 'indice' else 'Leitura ADC'
+    st.subheader('Panorama geral · Os seis dias em um só gráfico')
+    mostrar_minutos = st.checkbox(
+        'Mostrar também as leituras minuto a minuto dos seis dias',
+        value=True, key='panorama_minutos'
+    )
+    st.plotly_chart(
+        g.panorama_geral(base, campo=coluna, mostrar_minutos=mostrar_minutos),
+        use_container_width=True
+    )
+    st.caption(
+        'O traçado azul destaca a média calculada de cada dia; a linha pontilhada '
+        'mostra a média geral de todos os registros. As linhas claras mostram cada '
+        'minuto de cada sessão, sem conectar os períodos noturnos sem medições. '
+        'Todos os valores vêm da base selecionada, que contém registros demonstrativos.'
+    )
+    st.divider()
+    st.subheader('Análise detalhada · Dia escolhido')
     dia_completo = base[base['dia'] == dia].sort_values('data_hora').copy()
     horarios = dia_completo['hora'].tolist()
     if not horarios:
@@ -357,7 +374,7 @@ def tela_dashboard():
         st.metric('Maior índice', f"{mais_umido['indice']:.1f}%", mais_umido['hora'], delta_color='off')
     with c4:
         st.metric('Menor índice', f"{mais_seco['indice']:.1f}%", mais_seco['hora'], delta_color='off')
-    st.subheader('1 · Evolução minuto a minuto')
+    st.subheader('1 · Evolução minuto a minuto do dia')
     fig = px.line(foco, x='data_hora', y=coluna,
         labels={'data_hora': 'Horário (Brasília)', coluna: nome_eixo})
     fig.update_traces(line=dict(color='#0f9d86', width=3), mode='lines+markers',
@@ -401,28 +418,30 @@ def tela_dashboard():
     resumo = resumo_diario(base).copy()
     resumo['dia_label'] = resumo['dia'].apply(lambda d: d.strftime('%d/%m'))
     cores = ['#0f9d86' if d == dia else '#9dbdbb' for d in resumo['dia']]
-    media_fig = px.bar(resumo, x='dia_label', y='indice_medio',
-                       text_auto='.1f', labels={'dia_label':'Dia', 'indice_medio':'Índice relativo médio (%)'})
+    coluna_media = 'indice_medio' if coluna == 'indice' else 'adc_medio'
+    rotulo_media = 'Índice relativo médio (%)' if coluna == 'indice' else 'ADC médio'
+    media_fig = px.bar(resumo, x='dia_label', y=coluna_media,
+                       text_auto='.1f', labels={'dia_label':'Dia', coluna_media:rotulo_media})
     media_fig.update_traces(marker_color=cores, textposition='outside')
-    media_fig.update_layout(height=360, yaxis_range=[0, max(40, resumo['indice_medio'].max() + 6)])
+    media_fig.update_layout(height=360)
     st.plotly_chart(media_fig, use_container_width=True)
-    st.caption('Compare os seis dias de forma simples: a barra verde destaca o dia selecionado, e as demais mostram a média do índice relativo de umidade.')
+    st.caption('As barras mostram a média do indicador selecionado para cada dia. A barra verde representa o dia escolhido no filtro.')
     st.subheader('4 · Comparação entre horários')
     comparar = st.checkbox('Comparar também com outros dias', value=False, key='comparar_dias')
     if comparar:
         aux = base[base['hora'].between(inicio, fim)].copy()
         aux['dia_label'] = aux['dia'].apply(lambda d: d.strftime('%d/%m'))
-        horas = aux.groupby(['dia_label','hora_cheia'], as_index=False)['indice'].mean()
-        hfig = px.bar(horas, x='hora_cheia', y='indice', color='dia_label', barmode='group',
-                      labels={'hora_cheia':'Faixa horária','indice':'Índice médio (%)','dia_label':'Dia'})
+        horas = aux.groupby(['dia_label','hora_cheia'], as_index=False)[coluna].mean()
+        hfig = px.bar(horas, x='hora_cheia', y=coluna, color='dia_label', barmode='group',
+                      labels={'hora_cheia':'Faixa horária',coluna:nome_eixo,'dia_label':'Dia'})
     else:
-        horas = foco.groupby('hora_cheia', as_index=False)['indice'].mean()
-        hfig = px.bar(horas, x='hora_cheia', y='indice',
-                      labels={'hora_cheia':'Faixa horária','indice':'Índice médio (%)'})
+        horas = foco.groupby('hora_cheia', as_index=False)[coluna].mean()
+        hfig = px.bar(horas, x='hora_cheia', y=coluna,
+                      labels={'hora_cheia':'Faixa horária',coluna:nome_eixo})
         hfig.update_traces(marker_color='#245f87')
     hfig.update_layout(height=380)
     st.plotly_chart(hfig, use_container_width=True)
-    st.caption('As barras representam a média por faixa horária. Se a opção de comparação estiver marcada, mostram as mesmas faixas em outros dias.')
+    st.caption('As barras mostram a média por faixa horária para o indicador selecionado (ADC ou índice relativo). A comparação entre dias é opcional.')
     with st.expander('Tabela dos minutos selecionados e download'):
         visao = foco[['data_hora','adc','indice']].copy()
         visao['data_hora'] = visao['data_hora'].dt.strftime('%d/%m/%Y %H:%M')
@@ -493,7 +512,7 @@ def tela_conclusao():
 
 PAGINAS=[tela_inicio,tela_problema,tela_equipamentos,tela_fluxo,tela_coleta,tela_dashboard,tela_resultados,tela_conclusao]
 st.markdown(f'<div class="presentation-bar"><span><b>{ETAPAS[idx][1]} Etapa {idx+1:02d}/{len(ETAPAS):02d}</b> · {ETAPAS[idx][0]}</span><span>IESB · 2026</span></div>',unsafe_allow_html=True)
-st.caption('🟢 **Versão 4 — 24/11/2026** | Selecione **Dashboard** no menu para escolher o dia, filtrar minutos e identificar os picos.')
+st.caption('🟢 **Versão 5 — 24/11/2026** | Dashboard: panorama conjunto dos seis dias, médias calculadas, seleção de dia, minutos e picos.')
 PAGINAS[idx]()
 st.divider()
 prev,next_=st.columns([1,1])

@@ -1,14 +1,19 @@
-# Verificação de integridade do pacote
+# Verificação de integridade — versão atual (24/11/2026)
 
-A revisão realizada na preparação deste ZIP incluiu:
+- Conjunto de publicação: **1.440 linhas**, distribuídas em seis dias com **240 linhas por dia** (17–22/11/2026, 14h00–17h59).
+- Valores calculados da exportação mais recente: ADC médio **2456,98194** e índice relativo experimental médio **22,90361%**.
+- O gráfico de panorama geral usa a mesma fonte do dashboard e exibe todas as seis séries diárias, as médias de cada dia e a média global.
+- O gráfico de picos compara registros separados por dez minutos dentro do mesmo dia, sem inventar amostras.
+- Os testes automatizados verificam contagens, resumos, variações, datas e gráficos, inclusive o panorama geral.
+- Observações físicas reais devem ser interpretadas separadamente dos registros de demonstração e interpolação.
 
-- Compilação sintática (`py_compile`) de `app.py` e módulos auxiliares.
-- Carga do histórico público: **144 linhas, 6 dias**.
-- Verificação de média global ADC **2456,85** e índice médio **22,92%**, coerentes com o relatório.
-- Geração sem erro das funções de gráfico (série ADC, índice, médias diárias, boxplot, mapa de calor, variações, histograma e teste físico).
-- Teste das rotinas de filtro: três primeiros dias retornam **72 registros**.
-- Detecção das duas quedas de ADC demonstrativas em 21/11: **−96 e −40**.
-- Execução simulada do fluxo Python das oito páginas, com substitutos para chamadas da interface Streamlit.
-- Confirmação de que o ZIP não contém arquivo `secrets.toml` com credenciais.
+Para validar o aplicativo no ambiente local (com dependências instaladas):
 
-**Limitação importante:** este ambiente não dispõe da biblioteca Streamlit instalada e não teve acesso à instalação de novos pacotes pela internet. Portanto, **não foi possível abrir e validar visualmente o servidor Streamlit real aqui**. O usuário deverá fazer o teste final em Windows (conforme README) antes de publicar. A conexão ao PostgreSQL privado também não foi testada nesta etapa; o site público não precisa dela.
+~~~powershell
+python -m pip install -r requirements.txt
+python -m pip install pytest
+python -m pytest -q
+python -m streamlit run app.py
+~~~
+
+A conferência da interface hospedada e a conexão com o PostgreSQL privado exigem testes de execução; não se deve declarar esses testes como aprovados apenas pela revisão do código.

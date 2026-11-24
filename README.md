@@ -1,6 +1,6 @@
 # 🌱 Monitoramento de umidade do solo — IESB
 
-## ✅ Atualização V4 — 24/11/2026
+## ✅ Atualização V5 — 24/11/2026
 
 Este repositório contém a apresentação Streamlit do projeto ESP32 + sensor capacitivo V1.2.
 
@@ -13,6 +13,7 @@ Este repositório contém a apresentação Streamlit do projeto ESP32 + sensor c
 - **Visualização minuto a minuto** com destaque para maior e menor índice relativo;
 - Comparação entre ADC bruto e índice relativo de umidade;
 - Variação do ADC em janelas de dez minutos;
+- **Novo gráfico geral:** seis dias no mesmo gráfico, linhas de cada dia e médias diárias e global;
 - Média por dia e comparação por horário;
 - Explicações em linguagem simples sob os gráficos.
 
@@ -24,7 +25,7 @@ O CSV de divulgação já contém 1.440 pontos do **histórico demonstrativo**, 
 
 ### Fotografias
 
-A pasta [`imagens/`](iot-umidade-solo-streamlit/imagens/) reúne imagens reais do projeto. Novos acessórios serão mostrados na galeria quando suas fotografias forem incluídas no repositório.
+A pasta [`imagens/`](iot-umidade-solo-streamlit/imagens/) reúne imagens reais do projeto. A galeria ampliada contém fotografias dos acessórios e do protótipo.
 
 ### Rodar localmente
 
