@@ -257,7 +257,7 @@ def tela_fluxo():
         'A ESP32 usa o GPIO34, faz 20 amostras para compor uma média e envia leituras aproximadamente a cada 10 segundos.',
         'Um programa Python captura a comunicação serial e registra a data e a hora a partir do relógio do computador.',
         'Os arquivos CSV permitem importação no PostgreSQL. No projeto, a tabela consultada foi telemetria_iot.importacao_csv.',
-        'O notebook confirmou 144 linhas no histórico demonstrativo, gerou estatísticas descritivas e seis visualizações.'
+        'O notebook permite analisar os 1.440 pontos demonstrativos por dia, minuto, horário e mudanças relevantes, com explicações simples.'
     ]
     st.markdown(f'<div class="callout-strong"><b>{items[escolha][0]}</b><br>{detalhamento[escolha]}</div>',unsafe_allow_html=True)
     st.subheader('Validação física documentada')
