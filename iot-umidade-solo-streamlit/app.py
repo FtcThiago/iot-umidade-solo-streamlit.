@@ -99,6 +99,7 @@ def nav_move(delta):
 if 'etapa' not in st.session_state:st.session_state.etapa=0
 st.sidebar.image(str(IMAGENS/'iesb_logo.png'),width=94)
 st.sidebar.markdown('### Projeto IoT')
+st.sidebar.success('✅ V4 atualizada · 24/11/2026')
 st.sidebar.caption('Ciência de Dados e Inteligência Artificial  ·  IESB 2026')
 st.sidebar.divider()
 st.sidebar.markdown('**Navegação da apresentação**')
@@ -111,6 +112,7 @@ st.sidebar.toggle('Modo apresentação',value=True,key='modo_apresentacao',
     help='Mantém tabelas técnicas recolhidas; desative para expandir os detalhes.')
 st.sidebar.caption('Visão resumida' if st.session_state.modo_apresentacao else 'Visão técnica ampliada')
 st.sidebar.caption('Dados de apresentação: histórico demonstrativo. A validação física é mostrada separadamente.')
+st.sidebar.caption('144 referências + 1.296 pontos interpolados = 1.440 registros de demonstração.')
 st.sidebar.divider()
 st.sidebar.markdown('**Thiago Félix Teixiera Chaves**')
 st.sidebar.caption('Prof. Sérgio Cortez')
@@ -238,6 +240,7 @@ def tela_equipamentos():
         for col,(arquivo,legenda) in zip(colunas,fotos[inicio:inicio+3]):
             with col:imagem(arquivo,legenda)
     st.subheader('Galeria dos acessórios complementares')
+    st.info('Esta seção recebe fotografias adicionais. Enquanto isso, veja as imagens reais já publicadas na galeria principal acima.')
     st.caption('As peças adicionais foram adquiridas, mas não integram o circuito de leitura validado. Alguns itens poderão ser usados em melhorias futuras.')
     fotos_extras = [
         ('modulo_rele_duplo.jpg', 'Relé de dois canais — expansão futura'),
@@ -490,6 +493,7 @@ def tela_conclusao():
 
 PAGINAS=[tela_inicio,tela_problema,tela_equipamentos,tela_fluxo,tela_coleta,tela_dashboard,tela_resultados,tela_conclusao]
 st.markdown(f'<div class="presentation-bar"><span><b>{ETAPAS[idx][1]} Etapa {idx+1:02d}/{len(ETAPAS):02d}</b> · {ETAPAS[idx][0]}</span><span>IESB · 2026</span></div>',unsafe_allow_html=True)
+st.caption('🟢 **Versão 4 — 24/11/2026** | Selecione **Dashboard** no menu para escolher o dia, filtrar minutos e identificar os picos.')
 PAGINAS[idx]()
 st.divider()
 prev,next_=st.columns([1,1])
