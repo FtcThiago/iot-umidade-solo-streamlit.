@@ -169,12 +169,20 @@ if fonte == 'CSV de apresentação':
             'O aplicativo não exibirá gráficos incompletos como se fossem o histórico total.'
         )
         st.stop()
-elif total_fonte != 1440:
+elif total_fonte != 1440 or len(resumo_contagem) != 6 or not (resumo_contagem == 240).all():
+    # Não misturar uma importação antiga do banco com a demonstração completa.
     st.warning(
-        f'A fonte PostgreSQL retornou {total_fonte} registros; o CSV publicado '
-        'contém 1.440. Se você precisa do histórico demonstrativo completo, '
-        'selecione "CSV de apresentação" na barra lateral.'
+        f'O PostgreSQL retornou {total_fonte} registros e não corresponde ao '
+        'histórico esperado de 1.440. Para não exibir gráficos incompletos, '
+        'a página foi alterada automaticamente para o CSV completo do GitHub.'
     )
+    fonte = 'CSV de apresentação (substitui PostgreSQL incompleto)'
+    base = buscar_csv()
+    total_fonte = len(base)
+    resumo_contagem = base.groupby('dia').size()
+    if total_fonte != 1440 or len(resumo_contagem) != 6 or not (resumo_contagem == 240).all():
+        st.error('O CSV de publicação também está incompleto. Atualize a versão da aplicação.')
+        st.stop()
 st.sidebar.metric('Registros realmente carregados', f'{total_fonte:,}'.replace(',', '.'))
 st.sidebar.caption(f'Fonte: {fonte}. Dias: {len(resumo_contagem)}.')
 
