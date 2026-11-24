@@ -186,9 +186,8 @@ def tela_inicio():
     for col,(ti,de) in zip(cols,infos):
         with col:card(ti,de)
     st.markdown('<div class="note">O site utiliza um <b>histórico demonstrativo</b> para apresentar análises de vários dias. Os testes físicos realizados com a planta são apresentados separadamente, sem supor coleta contínua nesse período.</div>',unsafe_allow_html=True)
-    if st.button('Explorar os gráficos →',type='primary',key='ir_dashboard'):
-        st.session_state.etapa=5
-        st.rerun()
+    st.button('Explorar os gráficos →',type='primary',key='ir_dashboard',
+              on_click=nav_move,args=(5,))
 
 
 def tela_problema():
