@@ -36,11 +36,11 @@ Este roteiro acompanha o site Streamlit; abra-o e utilize **Próxima etapa →**
 
 ## 6. Dashboard (1 minuto e 40 segundos)
 
-**Mostre:** cartões, filtro de datas, série temporal e gráfico diário; depois mapa de calor/variações.
+**Mostre:** primeiro o panorama dos seis dias com médias diárias e média geral; depois selecione o dia, filtre minutos e destaque os picos; o mapa de calor é complementar.
 
-**Fale:** “Esta parte usa um histórico demonstrativo de seis dias, com 144 registros, para exercitar as consultas e a análise. Podemos filtrar um dia e os indicadores são recalculados. Entre 17 e 20/11, a média de ADC cresce; em 21/11 aparece uma mudança no cenário.”
+**Fale:** “Esta parte usa um histórico demonstrativo de seis dias, com 1.440 registros (240 em cada dia), para exercitar as consultas e a análise. Podemos filtrar um dia e os indicadores são recalculados. Entre 17 e 20/11, a média de ADC cresce; em 21/11 aparece uma mudança no cenário.”
 
-**Faça uma interação:** altere o intervalo de 17–22/11 para 20–22/11 e volte.
+**Faça uma interação:** selecione 21/11, observe o pico das 15h40 no gráfico de janelas de dez minutos, e retorne ao panorama geral.
 
 ## 7. Resultados (1 minuto)
 
