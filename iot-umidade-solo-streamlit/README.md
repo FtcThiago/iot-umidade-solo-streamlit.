@@ -162,3 +162,15 @@ Este ramo de desenvolvimento não altera os arquivos CSV nem as credenciais de c
 A fonte pública contém 1.440 pontos para seis tardes (14h00–17h59). Mantém os 144 valores anteriores e acrescenta 1.296 estimativas interpoladas entre referências, permitindo demonstrar gráficos por dia, por minuto, por hora e mudanças em janelas de dez minutos. Esses 1.440 pontos não são 1.440 medições físicas independentes. Os testes físicos da ESP32 estão descritos separadamente.
 
 O aplicativo expõe preços totais comprovados (R$ 76,32; R$ 7,56; R$ 11,33, total R$ 95,21), amplia a galeria com as imagens já publicadas e não apresenta dicas de apresentação. A bomba e os relés continuam reservados para evolução futura.
+
+## Painel de gráficos com filtros (24/11/2026)
+
+A página Dashboard permite escolher **uma data**, ajustar o intervalo de **minutos**, alternar entre o índice experimental (%) e a leitura ADC e marcar os extremos (maior e menor índice). Também apresenta a média por dia e, opcionalmente, a comparação por faixa horária entre dias.
+
+A análise de mudança relevante compara medições separadas por **dez minutos**. Pontos consecutivos relacionados ao mesmo evento são agrupados; uma queda do ADC não identifica necessariamente uma causa física.
+
+A exportação do banco `telemetria_iot.importacao_csv` foi validada: **1.440 linhas**, **240 por dia**, de **17 a 22/11/2026**, das **14h00 às 17h59**. Todos os valores do CSV do site coincidem com os da exportação recebida. O histórico inclui interpolação; não representa monitoramento físico ininterrupto.
+
+### Fotos novas na galeria
+
+O aplicativo suporta imagens opcionais em `imagens/galeria_extra/`. A galeria só exibe os arquivos que já foram enviados, sem imagens quebradas. As 15 fotos novas dos componentes estão no pacote fornecido no chat e devem ser enviadas ao mesmo diretório, preservando os nomes dos arquivos. Fotografia de componente adquirido não implica sua utilização no sistema de aquisição já validado.
