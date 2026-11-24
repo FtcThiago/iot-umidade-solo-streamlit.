@@ -182,3 +182,22 @@ O aplicativo suporta imagens opcionais em `imagens/galeria_extra/`. A galeria s�
 - Médias da exportação validada: **2.456,98 ADC** e **22,90%** de índice relativo experimental.
 - Os gráficos apenas agregam os valores do arquivo/banco escolhido. Não criam novas observações físicas ou eventos de chuva.
 - Testes atualizados para o volume correto de dados e textos de documentação revisados.
+
+## Correção V6 — compatibilidade com a base de 1.440 registros
+
+A versão hospedada estava exibindo 144 registros apesar de o CSV mais recente
+no GitHub conter 1.440. **Causa provável:** a função `buscar_csv()` utilizava
+`@st.cache_data` sem TTL; a aplicação podia reutilizar o DataFrame anterior
+quando o arquivo foi atualizado. O cache foi removido dessa função.
+
+Verificações adicionadas à interface:
+
+- Contador na barra lateral **"Registros realmente carregados"**, que reflete o DataFrame usado nos gráficos, sem número fixo.
+- Validação obrigatória do CSV: 1.440 registros, seis dias, 240 por dia. Caso falhe, o aplicativo mostra um erro e para, em vez de exibir 144 linhas como se fosse tudo.
+- Se o PostgreSQL privado opcional ainda retornar 144 linhas, o painel avisa e muda automaticamente para o CSV de 1.440 registros, **sem afirmar que o banco foi atualizado**.
+- **Gráfico 1:** panorama geral das seis tardes, suas leituras minuto a minuto, médias diárias e média global.
+- **Gráfico 2:** escolha um dia e o intervalo de minutos, com os picos identificados dentro da seleção.
+- A versão da barra lateral e o rodapé foram atualizados para **V6** para facilitar a verificação de implantação.
+
+A aplicação pública lê os registros do CSV. Para atualizar a tabela no banco PostgreSQL,
+é necessário importar os registros no banco separadamente; o aplicativo não faz escritas no banco.
