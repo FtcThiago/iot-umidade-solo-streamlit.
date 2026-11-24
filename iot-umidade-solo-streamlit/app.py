@@ -99,7 +99,7 @@ def nav_move(delta):
 if 'etapa' not in st.session_state:st.session_state.etapa=0
 st.sidebar.image(str(IMAGENS/'iesb_logo.png'),width=94)
 st.sidebar.markdown('### Projeto IoT')
-st.sidebar.success('✅ V5 · panorama geral dos 6 dias · 24/11/2026')
+st.sidebar.success('✅ V6 · 1.440 registros · 24/11/2026')
 st.sidebar.caption('Ciência de Dados e Inteligência Artificial  ·  IESB 2026')
 st.sidebar.divider()
 st.sidebar.markdown('**Navegação da apresentação**')
@@ -112,7 +112,7 @@ st.sidebar.toggle('Modo apresentação',value=True,key='modo_apresentacao',
     help='Mantém tabelas técnicas recolhidas; desative para expandir os detalhes.')
 st.sidebar.caption('Visão resumida' if st.session_state.modo_apresentacao else 'Visão técnica ampliada')
 st.sidebar.caption('Dados de apresentação: histórico demonstrativo. A validação física é mostrada separadamente.')
-st.sidebar.caption('Histórico de referência: 1.440 registros (240 por dia; seis dias).')
+st.sidebar.caption('Histórico demonstrativo: dados completos de 17 a 22/11/2026.')
 st.sidebar.divider()
 st.sidebar.markdown('**Thiago Félix Teixiera Chaves**')
 st.sidebar.caption('Prof. Sérgio Cortez')
@@ -123,8 +123,12 @@ st.sidebar.caption('Brasília · 2026')
 def buscar_postgres(config: dict):
     return carregar_postgres_config(config)
 
-@st.cache_data(show_spinner=False)
 def buscar_csv():
+    """Rele o CSV em cada atualização para não reutilizar os antigos 144 registros.
+
+    O arquivo tem 1.440 linhas (~85 KB). O custo de leitura é desprezível e
+    evita que o cache do Streamlit retenha a versão anterior do histórico.
+    """
     return carregar_publicacao()
 
 try:
@@ -151,6 +155,29 @@ if base.empty:
     st.error('A fonte de dados não retornou registros válidos.')
     st.stop()
 
+# Integridade: não apresentar um CSV antigo de 144 linhas como se fosse 1.440.
+# A validação é aplicada ao histórico demonstrativo, não a futuras medições
+# físicas obtidas por uma conexão PostgreSQL diferente.
+total_fonte = len(base)
+resumo_contagem = base.groupby('dia').size()
+if fonte == 'CSV de apresentação':
+    if total_fonte != 1440 or len(resumo_contagem) != 6 or not (resumo_contagem == 240).all():
+        st.error(
+            'O arquivo de publicação carregado está incompleto: '
+            f'{total_fonte} registros em {len(resumo_contagem)} dias. '
+            'A versão validada contém 1.440 registros (240 por dia). '
+            'O aplicativo não exibirá gráficos incompletos como se fossem o histórico total.'
+        )
+        st.stop()
+elif total_fonte != 1440:
+    st.warning(
+        f'A fonte PostgreSQL retornou {total_fonte} registros; o CSV publicado '
+        'contém 1.440. Se você precisa do histórico demonstrativo completo, '
+        'selecione "CSV de apresentação" na barra lateral.'
+    )
+st.sidebar.metric('Registros realmente carregados', f'{total_fonte:,}'.replace(',', '.'))
+st.sidebar.caption(f'Fonte: {fonte}. Dias: {len(resumo_contagem)}.')
+
 
 # ------------------ PÁGINAS ------------------
 def tela_inicio():
@@ -168,7 +195,7 @@ def tela_inicio():
     with c1:st.metric('Dias no histórico',str(base['dia'].nunique()))
     with c2:st.metric('Leituras do histórico',f'{len(base):,}'.replace(',','.'))
     with c3:st.metric('Custo documentado','R$ 95,21')
-    with c4:st.metric('Visualizações','5 perspectivas')
+    with c4:st.metric('Visualizações','5')
     st.write('')
     section('A proposta','Uma solução simples, de ponta a ponta',
             'O principal resultado é a integração entre montagem eletrônica, programação, armazenamento e análise de dados.')
@@ -323,18 +350,24 @@ ORDER BY timestamp_local;''',language='sql')
     st.caption('O índice é uma transformação para comparação, não a porcentagem absoluta de água no solo.')
 
 def tela_dashboard():
-    section('Etapa 05 · Análise interativa', 'Evolução da umidade e picos',
-            'Selecione um dia e intervalo de minutos para conhecer a variação do sensor e encontrar os pontos mais importantes.')
+    section('Etapa 05 · Análise interativa', 'Os seis dias e os detalhes de cada dia',
+            'Dois gráficos principais: um panorama de 17 a 22/11 e outro interativo, minuto a minuto, para o dia escolhido.')
     st.caption(f'Histórico demonstrativo: {len(base):,} registros em {base["dia"].nunique()} dias, provenientes da fonte escolhida ({fonte}). Os testes físicos da ESP32 estão na página Resultados.'.replace(',', '.'))
     dias = sorted(base['dia'].unique())
-    dia = st.selectbox('Escolha o dia para visualizar os minutos', dias,
-        index=next((i for i, d in enumerate(dias) if d.strftime('%Y-%m-%d') == '2026-11-21'), 0),
-        format_func=lambda d: d.strftime('%d/%m/%Y'), key='dia_dashboard')
+    # O seletor de data fica junto ao segundo gráfico, mas controla todos os
+    # indicadores, picos e comparações do dia escolhido.
+    dia = None
+    # Seletor apresentado depois do panorama geral:
+    # A seleção individual ocorre após o gráfico geral, para facilitar a leitura.
     valores = ['Índice relativo (%)', 'ADC bruto']
     modo = st.radio('Indicador do gráfico', valores, horizontal=True, key='indicador_dashboard')
     coluna = 'indice' if modo == valores[0] else 'adc'
     nome_eixo = 'Índice relativo experimental (%)' if coluna == 'indice' else 'Leitura ADC'
-    st.subheader('Panorama geral · Os seis dias em um só gráfico')
+    st.subheader('Gráfico 1 · PANORAMA GERAL — todos os 6 dias')
+    a1, a2, a3 = st.columns(3)
+    with a1: st.metric('Registros do conjunto', f'{len(base):,}'.replace(',', '.'))
+    with a2: st.metric('Dias incluídos', str(len(dias)))
+    with a3: st.metric('Média geral do indicador', f'{base[coluna].mean():.2f}' + ('%' if coluna == 'indice' else ' ADC'))
     mostrar_minutos = st.checkbox(
         'Mostrar também as leituras minuto a minuto dos seis dias',
         value=True, key='panorama_minutos'
@@ -350,8 +383,13 @@ def tela_dashboard():
         'Todos os valores vêm da base selecionada, que contém registros demonstrativos.'
     )
     st.divider()
-    st.subheader('Análise detalhada · Dia escolhido')
+    st.subheader('Gráfico 2 · DIA ESCOLHIDO — leitura minuto a minuto')
+    dia = st.selectbox('Filtrar um dia (17 a 22/11/2026)', dias,
+        index=next((i for i, d in enumerate(dias) if d.strftime('%Y-%m-%d') == '2026-11-21'), 0),
+        format_func=lambda d: d.strftime('%d/%m/%Y'), key='dia_dashboard')
     dia_completo = base[base['dia'] == dia].sort_values('data_hora').copy()
+    st.caption(f'No dia {dia.strftime("%d/%m/%Y")} existem {len(dia_completo)} registros. '
+               'O controle abaixo seleciona os minutos que você quer visualizar.')
     horarios = dia_completo['hora'].tolist()
     if not horarios:
         st.warning('Não existem leituras na data escolhida.')
@@ -374,7 +412,7 @@ def tela_dashboard():
         st.metric('Maior índice', f"{mais_umido['indice']:.1f}%", mais_umido['hora'], delta_color='off')
     with c4:
         st.metric('Menor índice', f"{mais_seco['indice']:.1f}%", mais_seco['hora'], delta_color='off')
-    st.subheader('1 · Evolução minuto a minuto do dia')
+    st.subheader('Evolução minuto a minuto do dia filtrado')
     fig = px.line(foco, x='data_hora', y=coluna,
         labels={'data_hora': 'Horário (Brasília)', coluna: nome_eixo})
     fig.update_traces(line=dict(color='#0f9d86', width=3), mode='lines+markers',
@@ -393,7 +431,7 @@ def tela_dashboard():
                       yaxis_title=nome_eixo, margin=dict(t=42, b=40))
     st.plotly_chart(fig, use_container_width=True)
     st.caption('Cada ponto representa um minuto do histórico escolhido. As marcações identificam o maior e o menor índice do intervalo filtrado; o ADC bruto diminui quando a umidade relativa aumenta.')
-    st.subheader('2 · Momentos de maior mudança')
+    st.subheader('Mudanças mais importantes do dia')
     limiar = st.slider('Qual queda do ADC em dez minutos destacar?', 10, 100, 30, 5, key='limiar_picos')
     janelas = mudancas_em_dez_minutos(dia_completo)
     janelas = janelas[janelas['data_hora'].dt.strftime('%H:%M').between(inicio, fim)].copy()
@@ -414,7 +452,7 @@ def tela_dashboard():
         for reg in destaques.itertuples(index=False):
             st.caption(f"{reg.data_hora.strftime('%d/%m às %H:%M')}: queda de {-reg.delta_adc_10min:.0f} pontos ADC em dez minutos.")
     st.caption('Janelas vizinhas que apontam para a mesma alteração foram agrupadas. Quedas de ADC são indicativas de maior umidade relativa, mas não provam chuva ou rega.')
-    st.subheader('3 · Média diária: comparação entre os seis dias')
+    st.subheader('Comparação auxiliar · Média diária')
     resumo = resumo_diario(base).copy()
     resumo['dia_label'] = resumo['dia'].apply(lambda d: d.strftime('%d/%m'))
     cores = ['#0f9d86' if d == dia else '#9dbdbb' for d in resumo['dia']]
@@ -426,7 +464,7 @@ def tela_dashboard():
     media_fig.update_layout(height=360)
     st.plotly_chart(media_fig, use_container_width=True)
     st.caption('As barras mostram a média do indicador selecionado para cada dia. A barra verde representa o dia escolhido no filtro.')
-    st.subheader('4 · Comparação entre horários')
+    st.subheader('Comparação auxiliar · Médias por horário')
     comparar = st.checkbox('Comparar também com outros dias', value=False, key='comparar_dias')
     if comparar:
         aux = base[base['hora'].between(inicio, fim)].copy()
@@ -512,7 +550,7 @@ def tela_conclusao():
 
 PAGINAS=[tela_inicio,tela_problema,tela_equipamentos,tela_fluxo,tela_coleta,tela_dashboard,tela_resultados,tela_conclusao]
 st.markdown(f'<div class="presentation-bar"><span><b>{ETAPAS[idx][1]} Etapa {idx+1:02d}/{len(ETAPAS):02d}</b> · {ETAPAS[idx][0]}</span><span>IESB · 2026</span></div>',unsafe_allow_html=True)
-st.caption('🟢 **Versão 5 — 24/11/2026** | Dashboard: panorama conjunto dos seis dias, médias calculadas, seleção de dia, minutos e picos.')
+st.caption('🟢 **Versão 6 — 24/11/2026** | CSV sem cache antigo; 1.440 registros validados; dois gráficos principais (6 dias e dia individual).')
 PAGINAS[idx]()
 st.divider()
 prev,next_=st.columns([1,1])
