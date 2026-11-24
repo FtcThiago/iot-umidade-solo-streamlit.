@@ -7,6 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 from utils.dados import (ROOT, carregar_publicacao, carregar_postgres_config,
                          resumo_diario, variacoes, indicadores,
                          leituras_reais_referencia, converter_csv_download)
@@ -147,17 +148,6 @@ if base.empty:
     st.stop()
 
 
-ROTEIRO = [
-    'Apresente a pergunta principal: como transformar o estado da terra em informações úteis? Destaque o sensor, a ESP32 e o banco.',
-    'Explique por que observar a terra visualmente não oferece um histórico numérico. A solução registra mudanças do sinal.',
-    'Mostre a ESP32, a sonda e a foto da montagem. Explique as conexões GND, 3V3 e GPIO34 e o custo documentado.',
-    'Siga o fluxo físico até a análise: sensor → microcontrolador → USB → Python → CSV/PostgreSQL → gráficos.',
-    'Mostre os nomes das três colunas, explique ADC e o índice relativo e destaque que DBeaver é o gerenciador, não o banco.',
-    'Altere o intervalo de datas e o indicador. Mostre médias diárias, dispersão e o critério exploratório de variação.',
-    'Separe o teste físico, que comprovou resposta do sensor à água, do cenário demonstrativo de seis dias.',
-    'Conclua com o que funcionou e apresente a irrigação automática apenas como evolução futura.'
-]
-
 # ------------------ PÁGINAS ------------------
 def tela_inicio():
     a,b=st.columns([1.32,1],gap='large')
@@ -174,7 +164,7 @@ def tela_inicio():
     with c1:st.metric('Dias no histórico',str(base['dia'].nunique()))
     with c2:st.metric('Leituras do histórico',f'{len(base):,}'.replace(',','.'))
     with c3:st.metric('Custo documentado','R$ 95,21')
-    with c4:st.metric('Gráficos analíticos','6')
+    with c4:st.metric('Gráficos analíticos','4 principais')
     st.write('')
     section('A proposta','Uma solução simples, de ponta a ponta',
             'O principal resultado é a integração entre montagem eletrônica, programação, armazenamento e análise de dados.')
@@ -234,12 +224,18 @@ def tela_equipamentos():
                 ('Kit bomba de água (futuro)','R$ 11,33'),('Total documentado','R$ 95,21')],
                 columns=['Aquisição','Custo']),hide_index=True,use_container_width=True)
             st.caption('A bomba, os relés, o visor OLED e o DHT11 não foram integrados ao protótipo validado.')
-    with st.expander('Galeria adicional — registros do processo',expanded=False):
-        c1,c2,c3=st.columns(3,gap='medium')
-        with c1:imagem('jumpers.jpg','Cabos utilizados durante os testes.')
-        with c2:imagem('sensor_na_planta.jpg','Instalação do sensor na planta monitorada.')
-        with c3:imagem('planta_geral.jpg','Visão geral da montagem junto à planta.')
-    st.markdown('<div class="note">Durante as regas, a parte eletrônica e a ESP32 devem permanecer secas e afastadas de respingos e tomadas.</div>',unsafe_allow_html=True)
+    st.subheader('Galeria ampliada — equipamentos e montagem')
+    fotos=[('esp32.jpg','ESP32'),('sensor_capacitivo.jpg','Sensor capacitivo V1.2'),
+           ('jumpers.jpg','Jumpers'),('montagem_prototipo.jpg','ESP32 e protoboard'),
+           ('sensor_na_planta.jpg','Sensor na planta'),('sonda_no_solo.jpg','Sonda no solo'),
+           ('planta_geral.jpg','Planta monitorada'),('planta_detalhe.jpg','Planta em detalhe'),
+           ('componentes.jpg','Componentes adquiridos'),('rele.jpg','Relé — etapa futura'),
+           ('bomba_mangueira.jpg','Bomba — etapa futura')]
+    for inicio in range(0,len(fotos),3):
+        colunas=st.columns(3,gap='medium')
+        for col,(arquivo,legenda) in zip(colunas,fotos[inicio:inicio+3]):
+            with col:imagem(arquivo,legenda)
+    st.markdown('<div class="note">Custos conforme comprovantes: kit ESP32 e acessórios <b>R$ 76,32</b>; sensor capacitivo <b>R$ 7,56</b>; kit de bomba para etapa futura <b>R$ 11,33</b>; total <b>R$ 95,21</b>. Durante os testes, mantenha toda eletrônica afastada de água e tomadas.</div>',unsafe_allow_html=True)
 
 
 def tela_fluxo():
@@ -261,7 +257,7 @@ def tela_fluxo():
         'A ESP32 usa o GPIO34, faz 20 amostras para compor uma média e envia leituras aproximadamente a cada 10 segundos.',
         'Um programa Python captura a comunicação serial e registra a data e a hora a partir do relógio do computador.',
         'Os arquivos CSV permitem importação no PostgreSQL. No projeto, a tabela consultada foi telemetria_iot.importacao_csv.',
-        'O notebook confirmou 144 linhas no histórico demonstrativo, gerou estatísticas descritivas e seis visualizações.'
+        'O notebook permite analisar os 1.440 pontos demonstrativos por dia, minuto, horário e mudanças relevantes, com explicações simples.'
     ]
     st.markdown(f'<div class="callout-strong"><b>{items[escolha][0]}</b><br>{detalhamento[escolha]}</div>',unsafe_allow_html=True)
     st.subheader('Validação física documentada')
@@ -269,98 +265,92 @@ def tela_fluxo():
 
 
 def tela_coleta():
-    section('Etapa 04 · Banco de dados','Onde os dados foram armazenados',
-            'A ESP32 envia valores pela serial, o Python registra o horário e o PostgreSQL conserva a tabela usada nas análises.')
-    a,b,c=st.columns(3)
-    with a:card('ADC bruto','solo_adc — valor de leitura analógica do sensor na escala nominal de 0 a 4095.')
-    with b:card('Carimbo temporal','timestamp_local — data, hora e informação de fuso horário associadas à leitura.')
-    with c:card('Índice experimental','indice_relativo_pct — transformação do ADC para uma escala de referência de 0 a 100.')
-    st.subheader('Estrutura SQL consultada')
+    section('Etapa 04 · Banco de dados','Da leitura da terra ao PostgreSQL',
+            'O sensor produziu os valores ADC; a ESP32 enviou-os por USB; Python registrou os horários e CSV; o DBeaver importou os registros no banco.')
+    st.subheader('1. Teste físico')
+    st.write('O sensor capacitivo foi conectado à ESP32 (3V3, GND e GPIO34). O código Arduino enviou as leituras pela serial aproximadamente a cada dez segundos, nos testes reais.')
+    st.subheader('2. Registro em Python')
+    st.write('Um programa Python leu a porta serial COM3 e acrescentou data e hora a cada leitura, salvando três colunas em CSV: timestamp_local, solo_adc e indice_relativo_pct.')
+    st.subheader('3. PostgreSQL com DBeaver')
+    st.write('Os arquivos CSV foram importados manualmente pelo DBeaver para o banco PostgreSQL, na tabela `telemetria_iot.importacao_csv`. O notebook consulta esses registros e o site usa um CSV de publicação, sem expor senhas.')
+    st.subheader('4. Histórico da demonstração')
+    st.write('O conjunto de análise abrange 17 a 22 de novembro de 2026, das 14h00 às 17h59. São 240 pontos por dia, totalizando 1.440, com um minuto de intervalo. Partiu-se de 144 pontos de referência; os intervalos foram completados por interpolação e pequenas variações simuladas. **Não significa seis dias de coleta física contínua.**')
+    c1,c2,c3=st.columns(3)
+    with c1:card('Data e hora','timestamp_local — horário da leitura em Brasília.')
+    with c2:card('ADC','solo_adc — valor analógico do sensor.')
+    with c3:card('Índice relativo (%)','indice_relativo_pct — escala experimental baseada em ADC 2618 e 1915.')
     st.code('''SELECT timestamp_local, solo_adc, indice_relativo_pct
 FROM telemetria_iot.importacao_csv
 ORDER BY timestamp_local;''',language='sql')
-    st.markdown('<div class="note">PostgreSQL é o banco de dados. <b>DBeaver</b> é a ferramenta utilizada para consultar e gerenciar esse banco. Neste site público, a fonte padrão é um CSV exportado do mesmo histórico documentado.</div>',unsafe_allow_html=True)
-    st.subheader('Prévia dos registros')
     d=base[['data_hora','adc','indice']].head(8).copy()
     d['data_hora']=d['data_hora'].dt.strftime('%d/%m/%Y %H:%M')
-    d.columns=['Data e hora (Brasília)','ADC do solo','Índice relativo (%)']
+    d.columns=['Data/hora','ADC','Índice relativo (%)']
     st.dataframe(d,hide_index=True,use_container_width=True)
-    with st.expander('Como funciona a transformação de ADC em índice?', expanded=not st.session_state.modo_apresentacao):
-        st.latex(r'I = \mathrm{limitar}_{[0,100]} \left(\frac{2618-ADC}{2618-1915}\times100\right)')
-        st.write('Os números 2618 e 1915 são referências experimentais observadas nos testes. **O índice não representa percentual absoluto de água no solo.**')
-    st.caption(f'Origem desta consulta na apresentação: {fonte}. Os seis dias são um histórico demonstrativo.')
-
+    st.caption('O índice é uma transformação para comparação, não a porcentagem absoluta de água no solo.')
 
 def tela_dashboard():
-    section('Etapa 05 · Análise interativa','Dashboard de umidade do solo',
-            'Filtre o período e explore tendências, dispersão e alterações do sinal. Os resultados são recalculados a partir dos dados carregados.')
-    st.markdown('<div class="kpi-band"><b>Conjunto analisado:</b> histórico demonstrativo de 17 a 22/11/2026, utilizado para avaliar as rotinas de análise. Não corresponde a seis dias de aquisição física contínua.</div>',unsafe_allow_html=True)
-    a,b=st.columns([1.7,1],gap='medium')
-    min_d,max_d=base['dia'].min(),base['dia'].max()
-    with a:
-        periodo=st.date_input('Intervalo de datas',value=(min_d,max_d),min_value=min_d,max_value=max_d,
-                               format='DD/MM/YYYY',key='periodo_dashboard')
-    with b:
-        indicador=st.selectbox('Indicador principal',['Leitura ADC','Índice relativo (%)'])
-    if isinstance(periodo,(tuple,list)) and len(periodo)==2:
-        start,end=periodo
-    elif isinstance(periodo,(tuple,list)) and len(periodo)==1:
-        start=end=periodo[0]
-    else:
-        start=end=periodo
-    f=base[base['dia'].between(start,end)].copy()
-    if f.empty:
-        st.warning('Nenhuma leitura encontrada no intervalo selecionado.')
-        return
-    info=indicadores(f)
-    x=st.columns(5,gap='small')
-    for col,(rot,val) in zip(x,[
-        ('Registros',str(info['n'])),('ADC médio',f"{info['adc_medio']:.1f}"),
-        ('ADC mínimo',str(int(info['adc_min']))),('ADC máximo',str(int(info['adc_max']))),
-        ('Índice médio',f"{info['indice_medio']:.1f}%")
-    ]):
-        with col:st.metric(rot,val)
-    st.caption(f'{info["dias"]} dia(s) no filtro · {info["inicio"].strftime("%d/%m/%Y %H:%M")} a {info["fim"].strftime("%d/%m/%Y %H:%M")} (Brasília)')
-    diaria=resumo_diario(f)
-    d_inicio,d_fim=diaria.iloc[0],diaria.iloc[-1]
-    variacao_media=d_fim.adc_medio-d_inicio.adc_medio
-    leitura=f'ADC médio {abs(variacao_media):.1f} pontos ' + ('maior' if variacao_media>0 else 'menor' if variacao_media<0 else 'igual')
-    conclusao=('tendência de maior secura relativa' if variacao_media>0 else 'tendência de maior umidade relativa' if variacao_media<0 else 'estabilidade do ADC médio')
-    st.markdown(f'<div class="insight-card"><strong>Leitura rápida do filtro</strong><p>Entre {d_inicio.dia.strftime("%d/%m")} e {d_fim.dia.strftime("%d/%m")}, o {leitura} aponta {conclusao} no conjunto selecionado. Essa comparação é exploratória, não identifica a causa da mudança.</p></div>',unsafe_allow_html=True)
-    tab1,tab2,tab3,tab4=st.tabs(['📈 Série temporal','📊 Comparação diária','🧭 Padrões','📋 Tabela de dados'])
-    with tab1:
-        campo='adc' if indicador=='Leitura ADC' else 'indice'
-        st.plotly_chart(g.serie_temporal(f,campo),use_container_width=True)
-        st.caption('Valores menores de ADC sugerem maior umidade relativa neste sensor; o índice foi derivado dessas mesmas leituras.')
-    with tab2:
-        l,r=st.columns([1.1,.9],gap='medium')
-        with l:st.plotly_chart(g.resumo_por_dia(f,'adc_medio' if indicador=='Leitura ADC' else 'indice_medio'),use_container_width=True)
-        with r:st.plotly_chart(g.distribuicao(f,'adc' if indicador=='Leitura ADC' else 'indice'),use_container_width=True)
-        d=resumo_diario(f).copy()
-        d['dia']=d['dia'].astype(str)
-        d=d[['dia','leituras','adc_medio','adc_desvio','indice_medio']].round(2)
-        d.columns=['Dia','Leituras','ADC médio','Desvio-padrão ADC','Índice médio (%)']
-        st.dataframe(d,hide_index=True,use_container_width=True)
-    with tab3:
-        limiar=st.slider('Limiar exploratório para quedas de ADC',min_value=10,max_value=100,value=30,step=5,
-                         help='Uma queda brusca pode sinalizar uma mudança no sensor, mas não comprova chuva ou irrigação.')
-        l,r=st.columns(2,gap='medium')
-        with l:st.plotly_chart(g.mapa_calor(f,'adc' if indicador=='Leitura ADC' else 'indice'),use_container_width=True)
-        with r:st.plotly_chart(g.diferencas(f,limiar=limiar),use_container_width=True)
-        eventos=variacoes(f)
-        eventos=eventos[eventos['delta_adc']<=-limiar].copy()
-        st.caption(f'{len(eventos)} queda(s) de ADC ≥ {limiar} entre leituras consecutivas do mesmo dia. Esse critério é exploratório e não comprova chuva real.')
-        with st.expander('Distribuição de frequência (histograma)', expanded=not st.session_state.modo_apresentacao):
-            st.plotly_chart(g.histograma(f),use_container_width=True)
-    with tab4:
-        tabela=f[['data_hora','adc','indice']].copy()
-        tabela['data_hora']=tabela['data_hora'].dt.strftime('%d/%m/%Y %H:%M')
-        tabela.columns=['Data e hora (Brasília)','Leitura ADC','Índice relativo (%)']
-        st.dataframe(tabela,hide_index=True,use_container_width=True,height=340)
-        st.download_button('⬇️ Exportar registros filtrados (CSV)',
-            data=converter_csv_download(f),file_name='leituras_iot_filtradas.csv',mime='text/csv')
-    st.markdown('<div class="source-note">Fonte: histórico demonstrativo documentado do projeto, consultado originalmente no PostgreSQL via notebook Python. Os indicadores acima correspondem ao filtro selecionado.</div>',unsafe_allow_html=True)
-
+    section('Etapa 05 · Análise interativa','Dashboard explicado passo a passo',
+            'Compare dias e horários e identifique mudanças sem precisar interpretar gráficos complexos.')
+    st.caption('Análises do histórico demonstrativo de 17 a 22/11/2026; medições físicas são apresentadas na página Resultados.')
+    dias=sorted(base['dia'].unique())
+    dia=st.selectbox('Escolha o dia para acompanhar minuto a minuto',dias,
+        index=next((i for i,d in enumerate(dias) if str(d)=='2026-11-21'),len(dias)-1),
+        format_func=lambda d:d.strftime('%d/%m/%Y'))
+    resumo=resumo_diario(base).copy()
+    resumo['dia_label']=resumo['dia'].apply(lambda x:x.strftime('%d/%m'))
+    c1,c2,c3=st.columns(3)
+    with c1:st.metric('Registros do histórico',f'{len(base):,}'.replace(',','.'))
+    with c2:st.metric('Dias',str(len(dias)))
+    with c3:st.metric('Registros do dia',str((base['dia']==dia).sum()))
+    st.subheader('1. Média de umidade por dia')
+    fig=px.bar(resumo,x='dia_label',y='indice_medio',text_auto='.1f',
+               labels={'dia_label':'Dia','indice_medio':'Índice relativo (%)'})
+    fig.update_traces(textposition='outside')
+    fig.update_layout(height=360,yaxis_range=[0,100])
+    st.plotly_chart(fig,use_container_width=True)
+    st.caption('Cada barra resume um dia. Índices mais altos indicam maior umidade relativa na escala experimental do sensor.')
+    st.subheader('2. Leituras minuto a minuto')
+    f=base[base['dia']==dia]
+    fig=px.line(f,x='data_hora',y='indice',
+                labels={'data_hora':'Horário da tarde','indice':'Índice relativo (%)'})
+    fig.update_layout(height=365)
+    st.plotly_chart(fig,use_container_width=True)
+    st.caption('A linha mostra a mudança do índice minuto a minuto no dia escolhido. Observe quando ela fica estável, sobe ou desce.')
+    st.subheader('3. Comparação dos horários entre os dias')
+    horas=base.groupby(['dia','hora_cheia'],as_index=False).agg(media=('indice','mean'))
+    horas['dia_label']=horas['dia'].apply(lambda x:x.strftime('%d/%m'))
+    fig=px.bar(horas,x='hora_cheia',y='media',color='dia_label',barmode='group',
+               labels={'hora_cheia':'Hora','media':'Índice médio (%)','dia_label':'Dia'})
+    fig.update_layout(height=410)
+    st.plotly_chart(fig,use_container_width=True)
+    st.caption('As barras comparam o índice médio das 14h, 15h, 16h e 17h em cada um dos seis dias.')
+    st.subheader('4. Momentos de mudança mais intensa')
+    atual=base[['dia','data_hora','adc']].copy()
+    atual['anterior']=atual['data_hora']-pd.Timedelta(minutes=10)
+    anterior=base[['dia','data_hora','adc']].rename(columns={'data_hora':'anterior','adc':'adc_anterior'})
+    janela=atual.merge(anterior,on=['dia','anterior'],how='left',validate='many_to_one')
+    janela['queda_10min']=janela['adc_anterior']-janela['adc']
+    destaques=janela[janela['queda_10min']>=30].nlargest(8,'queda_10min').copy()
+    if not destaques.empty:
+        destaques['horario']=destaques['data_hora'].dt.strftime('%d/%m %H:%M')
+        fig=px.bar(destaques.sort_values('queda_10min'),x='queda_10min',y='horario',
+                   orientation='h',labels={'queda_10min':'Queda de ADC em 10 min','horario':'Horário'})
+        fig.update_layout(height=360)
+        st.plotly_chart(fig,use_container_width=True)
+    else:st.info('Sem mudanças acima do limiar de 30 ADC em dez minutos.')
+    st.caption('Compara o ADC atual com o de dez minutos antes. Queda maior pode indicar aumento relativo de umidade, sem comprovar chuva ou rega. Várias janelas próximas podem refletir uma única mudança.')
+    with st.expander('Visualizações técnicas adicionais'):
+        a,b=st.columns(2)
+        with a:st.plotly_chart(g.distribuicao(base),use_container_width=True)
+        with b:st.plotly_chart(g.mapa_calor(base),use_container_width=True)
+        st.caption('O primeiro mostra a dispersão diária e o segundo organiza a intensidade do índice por dia e horário.')
+    with st.expander('Tabela completa e exportação'):
+        tb=base[['data_hora','adc','indice']].copy()
+        tb['data_hora']=tb['data_hora'].dt.strftime('%d/%m/%Y %H:%M')
+        tb.columns=['Data/hora','ADC','Índice relativo (%)']
+        st.dataframe(tb,hide_index=True,use_container_width=True)
+        st.download_button('Exportar CSV',data=converter_csv_download(base),file_name='leituras_iot.csv',mime='text/csv')
+    st.caption('A ampliação por interpolação facilita a demonstração da análise, mas não constitui 1.440 observações físicas independentes.')
 
 def tela_resultados():
     section('Etapa 06 · Evidências','Resultados e interpretação',
@@ -381,14 +371,8 @@ def tela_resultados():
     eventos=variacoes(base); event=eventos[eventos['delta_adc']<=-30]
     c1,c2,c3=st.columns(3)
     with c1:card('Tendência de secagem',f"O ADC médio passou de {primeiro.adc_medio:.1f} no primeiro dia para {mais_seco.adc_medio:.1f} em {mais_seco.dia.strftime('%d/%m')}.")
-    with c2:card('Alteração relevante',f"Foram sinalizadas {len(event)} quedas de ADC iguais ou superiores a 30 unidades entre leituras consecutivas.")
+    with c2:card('Alteração relevante','O cenário demonstrativo inclui mudança relevante no ADC em 21/11, indicando maior umidade relativa.')
     with c3:card('Limite interpretativo','O índice é experimental; alterações rápidas não identificam, sozinhas, a causa da umidificação.')
-    if len(event):
-        st.write('**Pontos destacados no histórico de teste:**')
-        v=event[['data_hora','delta_adc']].copy()
-        v['data_hora']=v['data_hora'].dt.strftime('%d/%m/%Y %H:%M')
-        v.columns=['Horário de referência','Variação de ADC']
-        st.dataframe(v,hide_index=True,use_container_width=True)
     st.markdown('<div class="note">As observações de vários dias representam <b>um cenário de demonstração</b>. Não foram coletadas continuamente pelo sensor nos seis dias; a confirmação física está documentada em testes separados.</div>',unsafe_allow_html=True)
 
 
@@ -422,8 +406,6 @@ def tela_conclusao():
 PAGINAS=[tela_inicio,tela_problema,tela_equipamentos,tela_fluxo,tela_coleta,tela_dashboard,tela_resultados,tela_conclusao]
 st.markdown(f'<div class="presentation-bar"><span><b>{ETAPAS[idx][1]} Etapa {idx+1:02d}/{len(ETAPAS):02d}</b> · {ETAPAS[idx][0]}</span><span>IESB · 2026</span></div>',unsafe_allow_html=True)
 PAGINAS[idx]()
-with st.expander('🎤 Dica de apresentação — o que explicar nesta etapa',expanded=False):
-    st.write(ROTEIRO[idx])
 st.divider()
 prev,next_=st.columns([1,1])
 with prev:

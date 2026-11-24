@@ -16,7 +16,7 @@ Aplicação de apresentação acadêmica do projeto **Sistema IoT de Telemetria 
 
 ### ⚠️ Procedência do histórico
 
-O arquivo `dados/leituras_publicacao.csv` contém **144 observações de um histórico sintético de demonstração**, organizado entre **17 e 22/11/2026** (24 registros por dia). Os dados correspondem à série utilizada na análise do relatório, mas **não são seis dias de aquisição física contínua**. A validação física em 22/11/2026 é mostrada **separadamente**, com observações selecionadas em `dados/teste_fisico_validacao.csv`. O índice relativo (%) é uma **transformação experimental** dos valores ADC; não é um percentual absoluto de água do solo.
+O arquivo `dados/leituras_publicacao.csv` contém **1.440 pontos de um histórico demonstrativo ampliado**, organizado entre **17 e 22/11/2026** (240 registros por dia, com intervalos de um minuto; 1.296 valores interpolados). Os dados correspondem à série utilizada na análise do relatório, mas **não são seis dias de aquisição física contínua**. A validação física em 22/11/2026 é mostrada **separadamente**, com observações selecionadas em `dados/teste_fisico_validacao.csv`. O índice relativo (%) é uma **transformação experimental** dos valores ADC; não é um percentual absoluto de água do solo.
 
 ## Estrutura do projeto
 
@@ -155,3 +155,10 @@ Execute `python -m pytest -q` se tiver `pytest` instalado, e depois `streamlit r
 Confirme que os filtros e gráficos mudam juntos, que a navegação funciona em celular e que o modo apresentação permite abrir o roteiro rápido.
 
 Este ramo de desenvolvimento não altera os arquivos CSV nem as credenciais de conexão ao PostgreSQL.
+
+
+## Dashboard e histórico ampliado — novembro/2026
+
+A fonte pública contém 1.440 pontos para seis tardes (14h00–17h59). Mantém os 144 valores anteriores e acrescenta 1.296 estimativas interpoladas entre referências, permitindo demonstrar gráficos por dia, por minuto, por hora e mudanças em janelas de dez minutos. Esses 1.440 pontos não são 1.440 medições físicas independentes. Os testes físicos da ESP32 estão descritos separadamente.
+
+O aplicativo expõe preços totais comprovados (R$ 76,32; R$ 7,56; R$ 11,33, total R$ 95,21), amplia a galeria com as imagens já publicadas e não apresenta dicas de apresentação. A bomba e os relés continuam reservados para evolução futura.
